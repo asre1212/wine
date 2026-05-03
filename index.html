@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#F9F8F6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Cellar" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Cellar</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" class="brand-icon" aria-hidden="true">
+        <use href="#bottle-icon"/>
+      </svg>
+      <h1>Cellar</h1>
+    </div>
+    <button id="settingsBtn" class="icon-btn" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm7.4 3.5c0-.4 0-.8-.1-1.2l2.1-1.6-2-3.5-2.5.9c-.6-.5-1.3-.9-2-1.2L14.5 2h-5l-.4 2.4c-.7.3-1.4.7-2 1.2l-2.5-.9-2 3.5L4.7 9.8c-.1.4-.1.8-.1 1.2s0 .8.1 1.2l-2.1 1.6 2 3.5 2.5-.9c.6.5 1.3.9 2 1.2L9.5 22h5l.4-2.4c.7-.3 1.4-.7 2-1.2l2.5.9 2-3.5-2.1-1.6c.1-.4.1-.8.1-1.2z"/></svg>
+    </button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-cat="wine" role="tab">Wine</button>
+    <button class="tab" data-cat="sake" role="tab">Sake</button>
+    <button class="tab" data-cat="liquor" role="tab">Liquor</button>
+  </nav>
+
+  <section class="filters">
+    <div class="filter-row">
+      <select id="typeFilter" class="select"><option value="">All types</option></select>
+      <select id="statusFilter" class="select">
+        <option value="all">All bottles</option>
+        <option value="drank">Tasted</option>
+        <option value="cellar">In cellar</option>
+      </select>
+      <select id="sortBy" class="select">
+        <option value="rating-desc">Rating ↓</option>
+        <option value="rating-asc">Rating ↑</option>
+        <option value="name">Name A–Z</option>
+        <option value="recent">Recently added</option>
+        <option value="yearDrank">Year drank ↓</option>
+      </select>
+    </div>
+    <div class="filter-row search-row">
+      <input id="searchInput" class="search" placeholder="Search by name or note…" />
+    </div>
+  </section>
+
+  <main id="list" class="list" aria-live="polite"></main>
+
+  <button id="addBtn" class="fab" aria-label="Add bottle">+</button>
+
+  <!-- Entry modal -->
+  <div id="entryModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="entryTitle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 id="entryTitle">New Bottle</h2>
+        <button class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+      <form id="entryForm" class="form">
+        <input type="hidden" name="id" />
+        <input type="hidden" name="category" />
+
+        <label class="field">
+          <span>Name</span>
+          <input name="name" required maxlength="120" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Type</span>
+          <select name="type" required></select>
+        </label>
+
+        <div class="field-group">
+          <label class="field check">
+            <input type="checkbox" name="cellar" />
+            <span>Still in cellar (not yet tasted)</span>
+          </label>
+        </div>
+
+        <label class="field rating-field">
+          <span>Rating <em>(0–5, two decimals)</em></span>
+          <div class="rating-row">
+            <input name="rating" type="number" inputmode="decimal" step="0.01" min="0" max="5" placeholder="e.g. 4.75" />
+            <div class="stars" data-stars></div>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Tasting note</span>
+          <textarea name="notes" rows="3" maxlength="2000"></textarea>
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Price</span>
+            <input name="price" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" />
+          </label>
+          <label class="field">
+            <span>Price year</span>
+            <input name="priceYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="2024" />
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Year bought</span>
+            <input name="yearBought" type="number" inputmode="numeric" min="1900" max="2100" />
+          </label>
+          <label class="field">
+            <span>Year drank</span>
+            <input name="yearDrank" type="number" inputmode="numeric" min="1900" max="2100" />
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="deleteBtn" class="btn-ghost danger hidden">Delete</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settingsModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-group">
+          <h3>Backup</h3>
+          <p class="muted">Export a JSON file of your full collection. Use this to move between phones.</p>
+          <button id="exportJsonBtn" class="btn-primary">Export JSON</button>
+          <label class="btn-ghost" for="importInput">Import JSON</label>
+          <input id="importInput" type="file" accept="application/json" hidden />
+        </div>
+        <div class="setting-group">
+          <h3>Spreadsheet</h3>
+          <p class="muted">Export the entire collection as an Excel workbook (one sheet per category).</p>
+          <button id="exportXlsxBtn" class="btn-primary">Export Excel (.xlsx)</button>
+        </div>
+        <div class="setting-group">
+          <h3>Install</h3>
+          <p class="muted">On iPhone: open this page in Safari, tap the Share icon, then "Add to Home Screen". The app then runs offline and stores data on this device.</p>
+        </div>
+        <div class="setting-group">
+          <h3>About</h3>
+          <p class="muted small">Cellar — local-first wine, sake & liquor journal. v1.0</p>
+          <p class="muted small">Bottles stored: <span id="statCount">0</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- SVG sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="bottle-icon" viewBox="0 0 32 32">
+        <path d="M13 2.5h6a1 1 0 0 1 1 1v3.4c0 .8.2 1.6.6 2.3l1.6 2.7c.5.8.8 1.7.8 2.7V27a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 9 27V14.6c0-1 .3-1.9.8-2.7l1.6-2.7c.4-.7.6-1.5.6-2.3V3.5a1 1 0 0 1 1-1z" fill="currentColor" opacity=".15"/>
+        <path d="M13 2.5h6a1 1 0 0 1 1 1v3.4c0 .8.2 1.6.6 2.3l1.6 2.7c.5.8.8 1.7.8 2.7V27a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 9 27V14.6c0-1 .3-1.9.8-2.7l1.6-2.7c.4-.7.6-1.5.6-2.3V3.5a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M13 7h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <rect x="11" y="17" width="10" height="6" rx="1" fill="currentColor" opacity=".25"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
