@@ -3,8 +3,10 @@
   'use strict';
 
   // ---------- Constants ----------
+  const APP_VERSION = '1.0.1';
   const STORAGE_KEY = 'cellar.bottles.v1';
   const SETTINGS_KEY = 'cellar.settings.v1';
+  const LAST_UPDATED_KEY = 'cellar.lastUpdated.v1';
 
   const TYPES = {
     wine: ['Red', 'White', 'Rosé', 'Sparkling', 'Dessert', 'Fortified', 'Orange', 'Other'],
@@ -450,6 +452,44 @@
   function updateStat() {
     const el = document.getElementById('statCount');
     if (el) el.textContent = state.bottles.length;
+    const ver = document.getElementById('appVersion');
+    if (ver) ver.textContent = APP_VERSION;
+    const last = document.getElementById('lastUpdated');
+    if (last) {
+      const ts = localStorage.getItem(LAST_UPDATED_KEY);
+      last.textContent = ts ? new Date(Number(ts)).toLocaleString() : 'first install';
+    }
+  }
+
+  // ---------- Force update from GitHub ----------
+  async function forceUpdate() {
+    if (!confirm('Pull the latest version from GitHub?\n\nYour bottles, ratings and notes are stored separately and will NOT be touched — only the app code refreshes.')) return;
+    const btn = document.getElementById('updateBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
+    toast('Fetching latest…');
+    try {
+      // 1. Unregister all service workers for this scope
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      // 2. Wipe all Cache Storage entries
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      // 3. Stamp the refresh time
+      localStorage.setItem(LAST_UPDATED_KEY, String(Date.now()));
+      // 4. Reload with a cache-buster so HTTP cache is bypassed
+      const url = new URL(location.href);
+      url.searchParams.set('_v', Date.now().toString(36));
+      // Small delay so the toast is visible
+      setTimeout(() => location.replace(url.toString()), 500);
+    } catch (e) {
+      console.error(e);
+      toast('Update failed — check connection');
+      if (btn) { btn.disabled = false; btn.textContent = 'Update from GitHub'; }
+    }
   }
 
   // ---------- Wiring ----------
@@ -523,15 +563,29 @@
       if (f) importJson(f);
       e.target.value = '';
     });
+    document.getElementById('updateBtn').addEventListener('click', forceUpdate);
   }
 
   // ---------- Service worker ----------
   function registerSW() {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
-    }
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('sw.js');
+        // Ask the browser to check for a new SW on every app open.
+        reg.update().catch(() => {});
+        // If a new SW is found and finishes installing, surface a quiet toast.
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              toast('New version available — open Settings to update');
+            }
+          });
+        });
+      } catch {}
+    });
   }
 
   // ---------- Init ----------
