@@ -16,6 +16,7 @@
 </head>
 <body>
   <header class="topbar">
+    <button id="notesBtn" class="topbar-link" aria-label="Open notes">Notes</button>
     <div class="brand">
       <svg viewBox="0 0 32 32" class="brand-icon" aria-hidden="true">
         <use href="#bottle-icon"/>
@@ -158,11 +159,33 @@
           <p class="muted">On iPhone: open this page in Safari, tap the Share icon, then "Add to Home Screen". The app then runs offline and stores data on this device.</p>
         </div>
         <div class="setting-group">
+          <h3>Updates</h3>
+          <p class="muted">Pulls the latest app code from GitHub and re-installs. Your bottles, ratings and notes stay safe — only the app shell is refreshed.</p>
+          <button id="updateBtn" class="btn-primary">Update from GitHub</button>
+          <p class="muted small">App version: <span id="appVersion">—</span></p>
+          <p class="muted small">Last refresh: <span id="lastUpdated">—</span></p>
+        </div>
+        <div class="setting-group">
           <h3>About</h3>
-          <p class="muted small">Cellar — local-first wine, sake & liquor journal. v1.0</p>
+          <p class="muted small">Cellar — local-first wine, sake &amp; liquor journal.</p>
           <p class="muted small">Bottles stored: <span id="statCount">0</span></p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Notes modal -->
+  <div id="notesModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 id="notesTitle">Notes</h2>
+        <button class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+      <p class="muted small notes-hint">A scratchpad for everything that isn't a bottle — favourite shops, sommelier recommendations, restaurant lists, gift ideas. Saved automatically.</p>
+      <textarea id="notesArea" class="notes-area" rows="14" placeholder="Places to buy from, recommendations, anything…"></textarea>
+      <p class="muted small notes-meta">Saved <span id="notesSavedAt">—</span></p>
     </div>
   </div>
 

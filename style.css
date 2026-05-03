@@ -128,9 +128,36 @@ body {
 }
 .icon-btn:active { color: var(--ink); background: var(--paper-soft); }
 
-/* topbar layout: spacer | brand | settings */
-.topbar::before { content: ''; grid-column: 1; }
+/* topbar layout: notes link | brand | settings */
 .topbar > .icon-btn { grid-column: 3; justify-self: end; }
+.topbar-link {
+  grid-column: 1;
+  justify-self: start;
+  align-self: center;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 500;
+  padding: 14px 4px 14px 0;
+  min-height: 44px;
+  cursor: pointer;
+  transition: color var(--med) var(--ease);
+  position: relative;
+}
+.topbar-link::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: 10px;
+  width: 0; height: 1px;
+  background: var(--gold);
+  transition: width var(--med) var(--ease);
+}
+.topbar-link:active { color: var(--ink); }
+.topbar-link:active::after { width: 100%; }
 
 /* ─────────────────────────────────
    Section masthead (under top bar)
@@ -622,6 +649,47 @@ input, select, textarea, button { font-size: 16px; }
   letter-spacing: 0.005em;
 }
 .muted.small { font-size: 12px; color: var(--muted-2); }
+
+/* ─────────────────────────────────
+   Notes sheet
+   ───────────────────────────────── */
+.notes-hint {
+  margin: 0 0 18px;
+  font-style: italic;
+  font-family: var(--serif);
+  color: var(--muted);
+  font-size: 13px;
+}
+.notes-area {
+  width: 100%;
+  min-height: 320px;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 18px 18px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink);
+  resize: vertical;
+  -webkit-appearance: none;
+  appearance: none;
+  font-feature-settings: "kern";
+}
+.notes-area:focus {
+  outline: none;
+  border-color: var(--gold);
+  background: var(--paper);
+}
+.notes-area::placeholder {
+  color: var(--muted-2);
+  font-style: italic;
+}
+.notes-meta {
+  margin: 14px 0 4px;
+  text-align: right;
+  letter-spacing: 0.04em;
+}
 
 /* ─────────────────────────────────
    Toast

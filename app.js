@@ -3,10 +3,12 @@
   'use strict';
 
   // ---------- Constants ----------
-  const APP_VERSION = '1.0.1';
+  const APP_VERSION = '1.0.2';
   const STORAGE_KEY = 'cellar.bottles.v1';
   const SETTINGS_KEY = 'cellar.settings.v1';
   const LAST_UPDATED_KEY = 'cellar.lastUpdated.v1';
+  const NOTES_KEY = 'cellar.notes.v1';
+  const NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
 
   const TYPES = {
     wine: ['Red', 'White', 'Rosé', 'Sparkling', 'Dessert', 'Fortified', 'Orange', 'Other'],
@@ -348,7 +350,8 @@
       app: 'cellar',
       version: 1,
       exportedAt: new Date().toISOString(),
-      bottles: state.bottles
+      bottles: state.bottles,
+      notes: loadNotes()
     }, null, 2)], { type: 'application/json' });
     download(blob, `cellar-backup-${dateStamp()}.json`);
     toast('Backup exported');
@@ -361,13 +364,18 @@
         const parsed = JSON.parse(r.result);
         const incoming = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.bottles) ? parsed.bottles : null);
         if (!incoming) throw new Error('Invalid file');
-        if (!confirm(`Import ${incoming.length} bottles?\n\nMerges with current data (duplicates by id are replaced).`)) return;
+        const incomingNotes = (parsed && typeof parsed.notes === 'string') ? parsed.notes : null;
+        const notesMsg = incomingNotes ? '\n\nThis backup also contains a Notes block — it will replace your current notes.' : '';
+        if (!confirm(`Import ${incoming.length} bottles?\n\nMerges with current data (duplicates by id are replaced).${notesMsg}`)) return;
         const map = new Map(state.bottles.map(b => [b.id, b]));
         incoming.forEach(b => {
           if (b && b.id) map.set(b.id, normalizeBottle(b));
         });
         state.bottles = Array.from(map.values());
         save();
+        if (incomingNotes !== null) {
+          saveNotes(incomingNotes);
+        }
         renderList();
         updateStat();
         toast(`Imported ${incoming.length} bottles`);
@@ -429,6 +437,16 @@
       ];
       XLSX.utils.book_append_sheet(wb, ws, CATEGORY_LABEL[cat]);
     });
+
+    // Notes sheet — one cell per line so it's readable in Excel
+    const notesText = loadNotes();
+    if (notesText && notesText.trim()) {
+      const notesRows = notesText.split('\n').map(line => ({ Notes: line }));
+      const notesWs = XLSX.utils.json_to_sheet(notesRows.length ? notesRows : [{ Notes: '' }]);
+      notesWs['!cols'] = [{ wch: 80 }];
+      XLSX.utils.book_append_sheet(wb, notesWs, 'Notes');
+    }
+
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     download(new Blob([wbout], { type: 'application/octet-stream' }), `cellar-${dateStamp()}.xlsx`);
     toast('Excel exported');
@@ -459,6 +477,41 @@
       const ts = localStorage.getItem(LAST_UPDATED_KEY);
       last.textContent = ts ? new Date(Number(ts)).toLocaleString() : 'first install';
     }
+  }
+
+  // ---------- Notes ----------
+  function loadNotes() {
+    return localStorage.getItem(NOTES_KEY) || '';
+  }
+  function saveNotes(text) {
+    try {
+      localStorage.setItem(NOTES_KEY, text);
+      localStorage.setItem(NOTES_SAVED_AT_KEY, String(Date.now()));
+      updateNotesSavedAt();
+    } catch {
+      toast('Save failed: storage full?');
+    }
+  }
+  function updateNotesSavedAt() {
+    const el = document.getElementById('notesSavedAt');
+    if (!el) return;
+    const ts = localStorage.getItem(NOTES_SAVED_AT_KEY);
+    if (!ts) { el.textContent = 'never'; return; }
+    const d = new Date(Number(ts));
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    el.textContent = sameDay
+      ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function openNotes() {
+    const modal = document.getElementById('notesModal');
+    const area = document.getElementById('notesArea');
+    area.value = loadNotes();
+    updateNotesSavedAt();
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => area.focus(), 80);
   }
 
   // ---------- Force update from GitHub ----------
@@ -564,6 +617,19 @@
       e.target.value = '';
     });
     document.getElementById('updateBtn').addEventListener('click', forceUpdate);
+
+    // Notes
+    document.getElementById('notesBtn').addEventListener('click', openNotes);
+    const notesArea = document.getElementById('notesArea');
+    let notesTimer = null;
+    notesArea.addEventListener('input', () => {
+      clearTimeout(notesTimer);
+      notesTimer = setTimeout(() => saveNotes(notesArea.value), 400);
+    });
+    notesArea.addEventListener('blur', () => {
+      clearTimeout(notesTimer);
+      saveNotes(notesArea.value);
+    });
   }
 
   // ---------- Service worker ----------

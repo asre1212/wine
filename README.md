@@ -10,6 +10,7 @@ A local-first iPhone-friendly Progressive Web App for tracking your wine, sake, 
 - Mark a bottle as **In cellar** (untasted) — it's tracked but doesn't get a rating.
 - Auto-ranking within each category by type, sorted by rating.
 - Filter by type / status, search by name or note.
+- A small "Notes" link in the top bar opens a free-form scratchpad (places to buy from, recommendations, gift ideas). Saved automatically; included in JSON backup and Excel export.
 - **Backup**: export/import full collection as JSON (use this when moving phones).
 - **Excel export**: `.xlsx` workbook, one sheet per category.
 - Works offline once installed.
@@ -56,9 +57,19 @@ Data is stored in the browser's `localStorage` for that origin. To move to a new
 
 ## Updating
 
-When you edit any file and push, the service worker may serve a cached version on next open. Either:
-- bump the cache name in `sw.js` (`cellar-v1` → `cellar-v2`), or
-- on iPhone: long-press the app → **Remove App** → re-add from Safari.
+After you push new code to GitHub, the easiest way to refresh the installed app on your phone is the built-in updater:
+
+1. Open the app.
+2. Tap the gear icon → **Updates** → **Update from GitHub**.
+3. Confirm. The app unregisters its service worker, clears its cache, and reloads with a cache-buster — fetching all assets fresh from GitHub Pages.
+
+Your bottles, ratings, notes, and tasting history live in `localStorage`, which the updater never touches. Only the app shell (HTML / JS / CSS / icons / xlsx library) is refreshed.
+
+The app also auto-checks for updates each time you open it. If a new version is detected, a small "New version available" toast appears in the corner; tap **Update from GitHub** to apply it.
+
+If you'd rather skip the in-app updater, you can also long-press the app on iPhone → **Remove App** → re-add from Safari. Your data will be lost that way unless you exported a backup first.
+
+When deploying a new version, also bump the cache name in `sw.js` (e.g. `cellar-v2` → `cellar-v3`) so users who never tap the update button still pick up the change automatically on next launch.
 
 ## Notes
 
