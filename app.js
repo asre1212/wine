@@ -3,7 +3,7 @@
   'use strict';
 
   // ---------- Constants ----------
-  const APP_VERSION = '1.0.2';
+  const APP_VERSION = '1.0.3';
   const STORAGE_KEY = 'cellar.bottles.v1';
   const SETTINGS_KEY = 'cellar.settings.v1';
   const LAST_UPDATED_KEY = 'cellar.lastUpdated.v1';
@@ -40,8 +40,11 @@
   function save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.bottles));
+      return true;
     } catch (e) {
-      toast('Save failed: storage full?');
+      console.error(e);
+      toast('Save failed: storage full. Try removing a picture.');
+      return false;
     }
   }
 
@@ -201,6 +204,7 @@
     const subParts = [];
     if (b.type) subParts.push(`<span class="badge">${escapeHtml(b.type)}</span>`);
     if (b.cellar) subParts.push(`<span class="badge cellar-badge">untasted</span>`);
+    if (b.photo) subParts.push(`<span class="badge photo-badge">picture</span>`);
     if (b.yearDrank && !b.cellar) subParts.push(`<span>Drank ${escapeHtml(b.yearDrank)}</span>`);
     if (b.yearBought) subParts.push(`<span>Bought ${escapeHtml(b.yearBought)}</span>`);
     if (b.price) subParts.push(`<span>$${escapeHtml(b.price)}${b.priceYear ? ` · ${escapeHtml(b.priceYear)}` : ''}</span>`);
@@ -244,11 +248,15 @@
       form.elements.priceYear.value = b.priceYear ?? '';
       form.elements.yearBought.value = b.yearBought ?? '';
       form.elements.yearDrank.value = b.yearDrank ?? '';
+      form.elements.photo.value = b.photo || '';
+      setPhotoPreview(b.photo || '');
       delBtn.classList.remove('hidden');
     } else {
       title.textContent = 'New ' + CATEGORY_LABEL[state.category];
       form.elements.id.value = '';
       form.elements.category.value = state.category;
+      form.elements.photo.value = '';
+      setPhotoPreview('');
       delBtn.classList.add('hidden');
     }
     updateStars(form.elements.rating.value);
@@ -287,6 +295,7 @@
       cellar,
       rating: cellar ? null : rating,
       notes: (data.notes || '').trim(),
+      photo: data.photo || '',
       price: data.price ? Number(data.price) : null,
       priceYear: data.priceYear ? Number(data.priceYear) : null,
       yearBought: data.yearBought ? Number(data.yearBought) : null,
@@ -306,7 +315,7 @@
     } else {
       state.bottles.push(bottle);
     }
-    save();
+    if (!save()) return;
     closeModal(document.getElementById('entryModal'));
     renderList();
     updateStat();
@@ -342,6 +351,69 @@
       else s += '☆';
     }
     stars.textContent = s;
+  }
+
+
+  // ---------- Bottle photos ----------
+  function setPhotoPreview(dataUrl) {
+    const form = document.getElementById('entryForm');
+    const preview = document.getElementById('photoPreview');
+    const img = preview ? preview.querySelector('img') : null;
+    const removeBtn = document.getElementById('removePhotoBtn');
+    const pick = document.querySelector('.photo-pick');
+    if (form && form.elements.photo) form.elements.photo.value = dataUrl || '';
+    if (!preview || !img) return;
+    if (dataUrl) {
+      img.src = dataUrl;
+      preview.classList.remove('hidden');
+      if (removeBtn) removeBtn.classList.remove('hidden');
+      if (pick) pick.textContent = 'Change picture';
+    } else {
+      img.removeAttribute('src');
+      preview.classList.add('hidden');
+      if (removeBtn) removeBtn.classList.add('hidden');
+      if (pick) pick.textContent = 'Add picture';
+    }
+  }
+
+  function processBottlePhoto(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !file.type || !file.type.startsWith('image/')) {
+        reject(new Error('Please choose an image file.'));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read image.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Could not load image.'));
+        img.onload = () => {
+          const maxSide = 720;
+          const sourceW = img.naturalWidth || img.width;
+          const sourceH = img.naturalHeight || img.height;
+          const scale = Math.min(1, maxSide / Math.max(sourceW, sourceH));
+          const w = Math.max(1, Math.round(sourceW * scale));
+          const h = Math.max(1, Math.round(sourceH * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d', { alpha: false });
+          ctx.fillStyle = '#F9F8F6';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          let out = canvas.toDataURL('image/webp', 0.64);
+          if (!out || !out.startsWith('data:image/webp')) out = canvas.toDataURL('image/jpeg', 0.68);
+          if (out.length > 350000) {
+            console.warn('Optimized bottle picture is still large:', out.length);
+          }
+          resolve(out);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   // ---------- Settings & Backup ----------
@@ -396,6 +468,7 @@
       cellar: !!b.cellar,
       rating: b.rating !== undefined && b.rating !== null && b.rating !== '' ? Number(b.rating) : null,
       notes: b.notes || '',
+      photo: typeof b.photo === 'string' ? b.photo : '',
       price: b.price ?? null,
       priceYear: b.priceYear ?? null,
       yearBought: b.yearBought ?? null,
@@ -421,6 +494,7 @@
           Status: b.cellar ? 'In cellar' : 'Tasted',
           Rating: b.cellar ? '' : (b.rating ?? ''),
           'Tasting Note': b.notes || '',
+          Picture: b.photo ? 'Attached locally (JSON backup only)' : '',
           Price: b.price ?? '',
           'Price Year': b.priceYear ?? '',
           'Year Bought': b.yearBought ?? '',
@@ -428,11 +502,11 @@
           Added: b.createdAt ? new Date(b.createdAt).toISOString().slice(0, 10) : ''
         }));
       const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{
-        Name: '', Type: '', Status: '', Rating: '', 'Tasting Note': '',
+        Name: '', Type: '', Status: '', Rating: '', 'Tasting Note': '', Picture: '',
         Price: '', 'Price Year': '', 'Year Bought': '', 'Year Drank': '', Added: ''
       }]);
       ws['!cols'] = [
-        { wch: 30 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 40 },
+        { wch: 30 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 40 }, { wch: 26 },
         { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, CATEGORY_LABEL[cat]);
@@ -516,7 +590,7 @@
 
   // ---------- Force update from GitHub ----------
   async function forceUpdate() {
-    if (!confirm('Pull the latest version from GitHub?\n\nYour bottles, ratings and notes are stored separately and will NOT be touched — only the app code refreshes.')) return;
+    if (!confirm('Pull the latest version from GitHub?\n\nYour bottles, pictures, ratings and notes are stored separately and will NOT be touched — only the app code refreshes.')) return;
     const btn = document.getElementById('updateBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
     toast('Fetching latest…');
@@ -601,6 +675,29 @@
       } else {
         ratingField.style.opacity = '1';
       }
+    });
+
+    document.getElementById('photoInput').addEventListener('change', async e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const submit = document.querySelector('#entryForm button[type="submit"]');
+      try {
+        if (submit) submit.disabled = true;
+        toast('Optimizing picture…');
+        const dataUrl = await processBottlePhoto(file);
+        setPhotoPreview(dataUrl);
+        toast('Picture added');
+      } catch (err) {
+        console.error(err);
+        toast(err.message || 'Could not add picture');
+      } finally {
+        if (submit) submit.disabled = false;
+        e.target.value = '';
+      }
+    });
+    document.getElementById('removePhotoBtn').addEventListener('click', () => {
+      setPhotoPreview('');
+      toast('Picture removed');
     });
 
     // Settings

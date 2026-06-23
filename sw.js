@@ -1,7 +1,7 @@
 /* Cellar service worker — offline app shell.
    Bump CACHE when deploying a new version so old caches are evicted
    on next visit even without a manual "Update from GitHub" tap. */
-const CACHE = 'cellar-v3';
+const CACHE = 'cellar-v4';
 const ASSETS = [
   './',
   './index.html',
