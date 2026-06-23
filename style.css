@@ -793,3 +793,5 @@ input, select, textarea, button { font-size: 16px; }
   opacity: 0.55;
   pointer-events: none;
 }
+
+.wine-subtype-field.hidden { display: none; }

@@ -7,11 +7,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Cellar" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="format-detection" content="telephone=no" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2.0.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -82,6 +83,11 @@
           <select name="type" required></select>
         </label>
 
+        <label class="field wine-subtype-field hidden">
+          <span>Wine style <em>(optional)</em></span>
+          <select name="subtype"></select>
+        </label>
+
         <div class="field-group">
           <label class="field check">
             <input type="checkbox" name="cellar" />
@@ -124,6 +130,22 @@
           </label>
         </div>
 
+        <div class="photo-field">
+          <div class="photo-copy">
+            <span>Bottle picture</span>
+            <p>Optional. Photos are resized on this phone and stored locally for speed.</p>
+          </div>
+          <input type="hidden" name="photo" />
+          <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+          <div class="photo-actions">
+            <label class="btn-ghost photo-pick" for="photoInput">Add picture</label>
+            <button type="button" id="removePhotoBtn" class="btn-ghost danger hidden">Remove</button>
+          </div>
+          <figure id="photoPreview" class="photo-preview hidden" aria-label="Bottle picture preview">
+            <img alt="Bottle preview" />
+          </figure>
+        </div>
+
         <div class="form-actions">
           <button type="button" id="deleteBtn" class="btn-ghost danger hidden">Delete</button>
           <button type="submit" class="btn-primary">Save</button>
@@ -160,7 +182,7 @@
         </div>
         <div class="setting-group">
           <h3>Updates</h3>
-          <p class="muted">Pulls the latest app code from GitHub and re-installs. Your bottles, ratings and notes stay safe — only the app shell is refreshed.</p>
+          <p class="muted">Pulls the latest app code from GitHub and re-installs. Your bottles, pictures, ratings and notes stay safe — only the app shell is refreshed.</p>
           <button id="updateBtn" class="btn-primary">Update from GitHub</button>
           <p class="muted small">App version: <span id="appVersion">—</span></p>
           <p class="muted small">Last refresh: <span id="lastUpdated">—</span></p>
@@ -204,7 +226,8 @@
     </defs>
   </svg>
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="app.js" defer></script>
+  <!-- The app must never wait on the optional Excel library. -->
+  <script src="app.js?v=2.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>

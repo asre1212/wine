@@ -1,58 +1,76 @@
-/* Cellar service worker — offline app shell.
-   Bump CACHE when deploying a new version so old caches are evicted
-   on next visit even without a manual "Update from GitHub" tap. */
-const CACHE = 'cellar-v4';
-const ASSETS = [
+/* Cellar service worker — coherent, offline app shell. */
+const CACHE = 'cellar-v6';
+const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
+  './style.css?v=2.0.0',
+  './app.js?v=2.0.0',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/icon-512-maskable.png',
+  './icons/icon-512-maskable.png'
+];
+const OPTIONAL_ASSETS = [
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
 ];
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((c) =>
-      Promise.all(ASSETS.map((url) =>
-        c.add(url).catch(() => null)
-      ))
-    ).then(() => self.skipWaiting())
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(CORE_ASSETS)
+        .then(() => Promise.all(OPTIONAL_ASSETS.map(url => cache.add(url).catch(() => null)))))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-  const req = e.request;
-  if (req.method !== 'GET') return;
+function isCoreRequest(request) {
+  if (request.mode === 'navigate') return true;
+  const path = new URL(request.url).pathname;
+  return ['/index.html', '/app.js', '/style.css', '/manifest.webmanifest']
+    .some(name => path.endsWith(name));
+}
 
-  e.respondWith(
-    caches.match(req).then((cached) => {
-      const fetchPromise = fetch(req).then((res) => {
-        // Cache successful same-origin or known-CDN responses
-        if (res && res.status === 200 && (res.type === 'basic' || res.type === 'cors')) {
-          const clone = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, clone)).catch(() => {});
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  if (isCoreRequest(request)) {
+    // Network-first prevents a mixed old-HTML/new-JS shell after a GitHub deploy.
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then(cached => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(request).then(cached => cached || fetch(request).then(response => {
+      if (response && response.ok && (response.type === 'basic' || response.type === 'cors')) {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {});
+      }
+      return response;
+    }))
   );
 });

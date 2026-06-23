@@ -4,6 +4,15 @@ A local-first iPhone-friendly Progressive Web App for tracking your wine, sake, 
 
 ## Features
 
+### Wine styles
+
+Wine has a second optional style field below the top-level type. Red, White, Rosé, Sparkling, Dessert, Fortified, Orange, and Other can be broken down into styles such as Pinot Noir, Cabernet Sauvignon, Nebbiolo / Barolo, Chardonnay, Chablis, Sauvignon Blanc, Champagne, Cava, and Prosecco. Rankings in Wine use the more specific style when present. Liquor includes Port as a type.
+
+### Bottle pictures
+
+Each bottle entry can include one local picture from the iPhone camera roll, camera, or screenshot. The app resizes the image in-browser to a small WebP/JPEG data image before saving it with the entry in local storage. Pictures are included in JSON backup/import. Excel export marks whether a picture exists, but does not embed the image file.
+
+
 - Three sections: **Wine**, **Sake**, **Liquor**, each with its own type categories.
 - Add bottles with name, type, tasting notes, price + price year, year bought, year drank.
 - Rating from 0–5 with up to two decimals (e.g. `4.75`).
@@ -75,3 +84,7 @@ When deploying a new version, also bump the cache name in `sw.js` (e.g. `cellar-
 
 - The Excel export uses [SheetJS](https://github.com/SheetJS/sheetjs) loaded from a CDN. It is cached on first online launch so subsequent offline launches still let you export.
 - All your data is in your browser; clearing site data on Safari erases your collection. Export a backup periodically.
+
+## Version 2.0 recovery
+
+Version 2.0 rewrites the app controller and preserves the existing `cellar.bottles.v1`, `cellar.notes.v1`, and related local-storage keys. After deploying all files, open the GitHub Pages URL once in Safari with `?fix=2.0.0` appended. This bypasses the broken older service-worker cache without deleting local data. Do not remove the Home Screen app or clear website data before exporting a JSON backup.
