@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.0';
+  var APP_VERSION = '2.0.1';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -431,31 +431,81 @@
   function processPhoto(file) {
     return new Promise(function (resolve, reject) {
       if (!file || String(file.type).indexOf('image/') !== 0) { reject(new Error('Choose an image file')); return; }
-      var reader = new FileReader();
-      reader.onerror = function () { reject(new Error('Could not read picture')); };
-      reader.onload = function () {
-        var image = new Image();
-        image.onerror = function () { reject(new Error('Could not open picture')); };
-        image.onload = function () {
-          var sourceWidth = image.naturalWidth || image.width;
-          var sourceHeight = image.naturalHeight || image.height;
-          var scale = Math.min(1, 720 / Math.max(sourceWidth, sourceHeight));
+
+      // iPhone camera files can be very large, and localStorage is small.
+      // Always make a compact JPEG thumbnail so saving is reliable offline.
+      var MAX_EDGE = 560;
+      var TARGET_BYTES = 150 * 1024;
+      var MIN_EDGE = 260;
+      var objectUrl = '';
+
+      function cleanup() {
+        if (objectUrl && window.URL && URL.revokeObjectURL) URL.revokeObjectURL(objectUrl);
+      }
+
+      function drawToDataUrl(image) {
+        var sourceWidth = image.naturalWidth || image.width || 1;
+        var sourceHeight = image.naturalHeight || image.height || 1;
+        var edge = MAX_EDGE;
+        var quality = 0.72;
+        var result = '';
+
+        while (edge >= MIN_EDGE) {
+          var scale = Math.min(1, edge / Math.max(sourceWidth, sourceHeight));
           var width = Math.max(1, Math.round(sourceWidth * scale));
           var height = Math.max(1, Math.round(sourceHeight * scale));
           var canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
-          var context = canvas.getContext('2d', { alpha: false });
+          var context = canvas.getContext('2d');
+          if (!context) throw new Error('Could not prepare picture');
           context.fillStyle = '#F9F8F6';
           context.fillRect(0, 0, width, height);
           context.drawImage(image, 0, 0, width, height);
-          var result = canvas.toDataURL('image/webp', 0.64);
-          if (result.indexOf('data:image/webp') !== 0) result = canvas.toDataURL('image/jpeg', 0.68);
-          resolve(result);
-        };
-        image.src = reader.result;
+
+          quality = edge === MAX_EDGE ? 0.72 : 0.64;
+          while (quality >= 0.46) {
+            result = canvas.toDataURL('image/jpeg', quality);
+            if (result && result.indexOf('data:image/jpeg') === 0 && result.length <= TARGET_BYTES * 1.37) return result;
+            quality -= 0.08;
+          }
+          edge -= 100;
+        }
+
+        if (result && result.indexOf('data:image/jpeg') === 0) return result;
+        throw new Error('Could not optimize picture');
+      }
+
+      var image = new Image();
+      image.onload = function () {
+        try {
+          var dataUrl = drawToDataUrl(image);
+          cleanup();
+          resolve(dataUrl);
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
       };
-      reader.readAsDataURL(file);
+      image.onerror = function () {
+        cleanup();
+        reject(new Error('Could not open picture. Try a screenshot or another photo.'));
+      };
+
+      try {
+        if (window.URL && URL.createObjectURL) {
+          objectUrl = URL.createObjectURL(file);
+          image.src = objectUrl;
+        } else {
+          var reader = new FileReader();
+          reader.onerror = function () { reject(new Error('Could not read picture')); };
+          reader.onload = function () { image.src = reader.result; };
+          reader.readAsDataURL(file);
+        }
+      } catch (error) {
+        cleanup();
+        reject(new Error('Could not read picture'));
+      }
     });
   }
 

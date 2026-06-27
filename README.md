@@ -88,3 +88,10 @@ When deploying a new version, also bump the cache name in `sw.js` (e.g. `cellar-
 ## Version 2.0 recovery
 
 Version 2.0 rewrites the app controller and preserves the existing `cellar.bottles.v1`, `cellar.notes.v1`, and related local-storage keys. After deploying all files, open the GitHub Pages URL once in Safari with `?fix=2.0.0` appended. This bypasses the broken older service-worker cache without deleting local data. Do not remove the Home Screen app or clear website data before exporting a JSON backup.
+
+
+## Version 2.0.1 photo reliability fix
+
+Bottle pictures are now converted to compact local JPEG thumbnails before saving. This is more reliable on iPhone Safari/PWA than saving large camera images or WebP data in local storage. Existing entries and existing photos are preserved.
+
+After deploying, open your app once with `?fix=2.0.1` at the end of the GitHub Pages URL, then use **Update from GitHub** if needed.
