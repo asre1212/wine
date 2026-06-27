@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.1';
+  var APP_VERSION = '2.0.2';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -32,7 +32,8 @@
     statusFilter: 'all',
     sortBy: 'rating-desc',
     search: '',
-    bottles: []
+    bottles: [],
+    draftPhoto: ''
   };
   var notesTimer = null;
 
@@ -309,11 +310,12 @@
   }
 
   function setPhotoPreview(dataUrl) {
-    var form = byId('entryForm');
     var preview = byId('photoPreview');
     var remove = byId('removePhotoBtn');
     var pick = document.querySelector('.photo-pick');
-    if (form && form.elements.photo) form.elements.photo.value = dataUrl || '';
+    // Do not place photo data in a form field. If Safari ever falls back to
+    // normal form submission, a data URL in the form becomes “URI too long”.
+    state.draftPhoto = dataUrl || '';
     if (!preview) return;
     var image = preview.querySelector('img');
     if (dataUrl) {
@@ -395,7 +397,7 @@
       cellar: cellar,
       rating: cellar ? null : rating,
       notes: formValue(form, 'notes').trim(),
-      photo: formValue(form, 'photo'),
+      photo: state.draftPhoto || '',
       price: numberOrNull(formValue(form, 'price')),
       priceYear: numberOrNull(formValue(form, 'priceYear')),
       yearBought: numberOrNull(formValue(form, 'yearBought')),
@@ -409,6 +411,7 @@
     if (index >= 0) next[index] = bottle; else next.push(bottle);
     if (!persistBottles(next)) return;
     state.bottles = next;
+    state.draftPhoto = '';
     closeModal(byId('entryModal'));
     renderList();
     updateCount();

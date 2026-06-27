@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.0.1" />
+  <link rel="stylesheet" href="style.css?v=2.0.2" />
   <title>Cellar</title>
 </head>
 <body>
@@ -69,7 +69,7 @@
         <h2 id="entryTitle">New Bottle</h2>
         <button class="icon-btn" data-close aria-label="Close">✕</button>
       </div>
-      <form id="entryForm" class="form">
+      <form id="entryForm" class="form" action="javascript:void(0)" novalidate>
         <input type="hidden" name="id" />
         <input type="hidden" name="category" />
 
@@ -135,7 +135,6 @@
             <span>Bottle picture</span>
             <p>Optional. Photos are resized on this phone and stored locally for speed.</p>
           </div>
-          <input type="hidden" name="photo" />
           <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
           <div class="photo-actions">
             <label class="btn-ghost photo-pick" for="photoInput">Add picture</label>
@@ -227,7 +226,7 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.0.1"></script>
+  <script src="app.js?v=2.0.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>

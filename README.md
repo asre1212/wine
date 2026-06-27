@@ -95,3 +95,10 @@ Version 2.0 rewrites the app controller and preserves the existing `cellar.bottl
 Bottle pictures are now converted to compact local JPEG thumbnails before saving. This is more reliable on iPhone Safari/PWA than saving large camera images or WebP data in local storage. Existing entries and existing photos are preserved.
 
 After deploying, open your app once with `?fix=2.0.1` at the end of the GitHub Pages URL, then use **Update from GitHub** if needed.
+
+
+## Version 2.0.2 URI-too-long photo fix
+
+Bottle photo data is no longer stored in a hidden form field. This prevents iPhone Safari from accidentally trying to submit a large image through the page URL, which caused the `URI too long` error. Photos are still stored locally with each bottle after Save.
+
+After deploying, open your app once with `?fix=2.0.2` at the end of the GitHub Pages URL.
