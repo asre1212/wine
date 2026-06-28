@@ -102,3 +102,10 @@ After deploying, open your app once with `?fix=2.0.1` at the end of the GitHub P
 Bottle photo data is no longer stored in a hidden form field. This prevents iPhone Safari from accidentally trying to submit a large image through the page URL, which caused the `URI too long` error. Photos are still stored locally with each bottle after Save.
 
 After deploying, open your app once with `?fix=2.0.2` at the end of the GitHub Pages URL.
+
+
+## Version 2.1.0 photo storage rebuild
+
+Bottle pictures now save in IndexedDB, the browser database designed for larger local data, instead of inside normal bottle records/localStorage. This should be much more reliable on iPhone Safari/PWA. JSON backup still includes pictures by reading them from the photo database during export.
+
+After deploying, open with `?fix=2.1.0`.

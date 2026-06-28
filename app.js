@@ -2,11 +2,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.2';
+  var APP_VERSION = '2.1.0';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
   var LAST_UPDATED_KEY = 'cellar.lastUpdated.v1';
+  var PHOTO_DB = 'cellar.photos.v1';
+  var PHOTO_STORE = 'photos';
 
   var TYPES = {
     wine: ['Red', 'White', 'Rosé', 'Sparkling', 'Dessert', 'Fortified', 'Orange', 'Other'],
@@ -33,7 +35,8 @@
     sortBy: 'rating-desc',
     search: '',
     bottles: [],
-    draftPhoto: ''
+    draftPhoto: '',
+    photoRemoved: false
   };
   var notesTimer = null;
 
@@ -69,6 +72,7 @@
       rating: numberOrNull(source.rating),
       notes: source.notes || '',
       photo: typeof source.photo === 'string' ? source.photo : '',
+      photoId: source.photoId || (source.photo ? source.id : ''),
       price: numberOrNull(source.price),
       priceYear: numberOrNull(source.priceYear),
       yearBought: numberOrNull(source.yearBought),
@@ -217,7 +221,7 @@
     if (bottle.type) meta.push('<span class="badge">' + escapeHtml(bottle.type) + '</span>');
     if (bottle.category === 'wine' && bottle.subtype) meta.push('<span class="badge wine-style-badge">' + escapeHtml(bottle.subtype) + '</span>');
     if (bottle.cellar) meta.push('<span class="badge cellar-badge">untasted</span>');
-    if (bottle.photo) meta.push('<span class="badge photo-badge">picture</span>');
+    if (bottle.photo || bottle.photoId) meta.push('<span class="badge photo-badge">picture</span>');
     if (bottle.yearDrank && !bottle.cellar) meta.push('<span>Drank ' + escapeHtml(bottle.yearDrank) + '</span>');
     if (bottle.yearBought) meta.push('<span>Bought ' + escapeHtml(bottle.yearBought) + '</span>');
     if (bottle.price !== null) meta.push('<span>$' + escapeHtml(bottle.price) + (bottle.priceYear ? ' · ' + escapeHtml(bottle.priceYear) : '') + '</span>');
@@ -309,13 +313,77 @@
     element.textContent = stars;
   }
 
+  function openPhotoDb() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error('Photo storage is not available')); return; }
+      var request = indexedDB.open(PHOTO_DB, 1);
+      request.onupgradeneeded = function () {
+        var db = request.result;
+        if (!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE);
+      };
+      request.onsuccess = function () { resolve(request.result); };
+      request.onerror = function () { reject(new Error('Could not open photo storage')); };
+    });
+  }
+
+  function photoDbAction(mode, action) {
+    return openPhotoDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(PHOTO_STORE, mode);
+        var store = tx.objectStore(PHOTO_STORE);
+        var request;
+        try { request = action(store); } catch (error) { db.close(); reject(error); return; }
+        tx.oncomplete = function () { db.close(); resolve(request ? request.result : undefined); };
+        tx.onerror = function () { db.close(); reject(new Error('Could not use photo storage')); };
+        tx.onabort = tx.onerror;
+      });
+    });
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    var parts = String(dataUrl || '').split(',');
+    var meta = parts[0] || '';
+    var binary = atob(parts[1] || '');
+    var mime = (meta.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+    var bytes = new Uint8Array(binary.length);
+    for (var index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new Blob([bytes], { type: mime });
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(new Error('Could not read saved picture')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function savePhoto(photoId, dataUrl) {
+    if (!photoId || !dataUrl) return Promise.resolve('');
+    return photoDbAction('readwrite', function (store) { return store.put(dataUrlToBlob(dataUrl), photoId); }).then(function () { return photoId; });
+  }
+
+  function loadPhoto(photoId) {
+    if (!photoId) return Promise.resolve('');
+    return photoDbAction('readonly', function (store) { return store.get(photoId); }).then(function (blob) {
+      return blob ? blobToDataUrl(blob) : '';
+    });
+  }
+
+  function deletePhoto(photoId) {
+    if (!photoId) return Promise.resolve();
+    return photoDbAction('readwrite', function (store) { return store.delete(photoId); }).catch(function () {});
+  }
+
   function setPhotoPreview(dataUrl) {
     var preview = byId('photoPreview');
     var remove = byId('removePhotoBtn');
     var pick = document.querySelector('.photo-pick');
-    // Do not place photo data in a form field. If Safari ever falls back to
-    // normal form submission, a data URL in the form becomes “URI too long”.
+    // Keep photo data out of forms and out of localStorage bottle records.
+    // It is saved separately in IndexedDB when the user taps Save.
     state.draftPhoto = dataUrl || '';
+    if (dataUrl) state.photoRemoved = false;
     if (!preview) return;
     var image = preview.querySelector('img');
     if (dataUrl) {
@@ -335,6 +403,8 @@
     var form = byId('entryForm');
     if (!form) return;
     form.reset();
+    state.draftPhoto = '';
+    state.photoRemoved = false;
     var bottle = id ? state.bottles.find(function (item) { return item.id === id; }) : null;
     var category = bottle ? bottle.category : state.category;
     form.elements.id.value = bottle ? bottle.id : '';
@@ -350,7 +420,12 @@
       form.elements.priceYear.value = bottle.priceYear === null ? '' : bottle.priceYear;
       form.elements.yearBought.value = bottle.yearBought === null ? '' : bottle.yearBought;
       form.elements.yearDrank.value = bottle.yearDrank === null ? '' : bottle.yearDrank;
-      setPhotoPreview(bottle.photo);
+      setPhotoPreview(bottle.photo || '');
+      if (!bottle.photo && bottle.photoId) {
+        loadPhoto(bottle.photoId).then(function (dataUrl) {
+          if (form.elements.id.value === bottle.id && dataUrl) setPhotoPreview(dataUrl);
+        }).catch(function () { toast('Could not load saved picture'); });
+      }
     } else {
       setPhotoPreview('');
     }
@@ -397,7 +472,8 @@
       cellar: cellar,
       rating: cellar ? null : rating,
       notes: formValue(form, 'notes').trim(),
-      photo: state.draftPhoto || '',
+      photo: '',
+      photoId: state.draftPhoto ? (id || '') : (state.photoRemoved ? '' : (existing ? existing.photoId : '')),
       price: numberOrNull(formValue(form, 'price')),
       priceYear: numberOrNull(formValue(form, 'priceYear')),
       yearBought: numberOrNull(formValue(form, 'yearBought')),
@@ -405,17 +481,28 @@
       createdAt: existing ? existing.createdAt : now(),
       updatedAt: now()
     });
+    if (state.draftPhoto) bottle.photoId = bottle.id;
     if (!bottle.name) { toast('Enter a bottle name'); return; }
     var next = state.bottles.slice();
     var index = next.findIndex(function (item) { return item.id === bottle.id; });
     if (index >= 0) next[index] = bottle; else next.push(bottle);
-    if (!persistBottles(next)) return;
-    state.bottles = next;
-    state.draftPhoto = '';
-    closeModal(byId('entryModal'));
-    renderList();
-    updateCount();
-    toast(existing ? 'Updated' : 'Saved');
+    var oldPhotoId = existing ? existing.photoId : '';
+    if (state.photoRemoved && oldPhotoId) deletePhoto(oldPhotoId);
+    var photoWork = state.draftPhoto ? savePhoto(bottle.id, state.draftPhoto) : Promise.resolve('');
+    photoWork.then(function () {
+      if (oldPhotoId && oldPhotoId !== bottle.photoId) deletePhoto(oldPhotoId);
+      if (!persistBottles(next)) return;
+      state.bottles = next;
+      state.draftPhoto = '';
+      state.photoRemoved = false;
+      closeModal(byId('entryModal'));
+      renderList();
+      updateCount();
+      toast(existing ? 'Updated' : 'Saved');
+    }).catch(function (error) {
+      console.error(error);
+      toast('Picture could not be saved. Try a screenshot or remove the picture.', 4200);
+    });
   }
 
   function deleteEntry() {
@@ -522,9 +609,20 @@
   }
 
   function exportJson() {
-    var payload = { app: 'cellar', version: 2, exportedAt: new Date().toISOString(), bottles: state.bottles, notes: loadNotes() };
-    download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'cellar-backup-' + dateStamp() + '.json');
-    toast('Backup exported');
+    toast('Preparing backup…');
+    Promise.all(state.bottles.map(function (bottle) {
+      if (bottle.photo) return Promise.resolve(bottle);
+      if (!bottle.photoId) return Promise.resolve(bottle);
+      return loadPhoto(bottle.photoId).then(function (dataUrl) {
+        var copy = Object.assign({}, bottle);
+        copy.photo = dataUrl || '';
+        return copy;
+      }).catch(function () { return bottle; });
+    })).then(function (bottles) {
+      var payload = { app: 'cellar', version: 3, exportedAt: new Date().toISOString(), bottles: bottles, notes: loadNotes() };
+      download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'cellar-backup-' + dateStamp() + '.json');
+      toast('Backup exported');
+    });
   }
 
   function importJson(file) {
@@ -538,14 +636,24 @@
         if (!confirm('Import ' + incoming.length + ' bottles? Existing entries with the same ID will be replaced.')) return;
         var byIdMap = {};
         state.bottles.forEach(function (bottle) { byIdMap[bottle.id] = bottle; });
-        incoming.map(normalizeBottle).forEach(function (bottle) { byIdMap[bottle.id] = bottle; });
-        var next = Object.keys(byIdMap).map(function (id) { return byIdMap[id]; });
-        if (!persistBottles(next)) return;
-        state.bottles = next;
-        if (parsed && typeof parsed.notes === 'string') saveNotes(parsed.notes);
-        renderList();
-        updateCount();
-        toast('Imported ' + incoming.length + ' bottles');
+        var photoJobs = [];
+        incoming.map(normalizeBottle).forEach(function (bottle) {
+          if (bottle.photo) {
+            bottle.photoId = bottle.id;
+            photoJobs.push(savePhoto(bottle.id, bottle.photo));
+            bottle.photo = '';
+          }
+          byIdMap[bottle.id] = bottle;
+        });
+        Promise.all(photoJobs).then(function () {
+          var next = Object.keys(byIdMap).map(function (id) { return byIdMap[id]; });
+          if (!persistBottles(next)) return;
+          state.bottles = next;
+          if (parsed && typeof parsed.notes === 'string') saveNotes(parsed.notes);
+          renderList();
+          updateCount();
+          toast('Imported ' + incoming.length + ' bottles');
+        }).catch(function () { toast('Import worked, but some pictures could not be saved'); });
       } catch (error) {
         console.error(error);
         toast('That backup file is not valid');
@@ -586,7 +694,7 @@
             Status: bottle.cellar ? 'In cellar' : 'Tasted',
             Rating: bottle.cellar ? '' : (bottle.rating === null ? '' : bottle.rating),
             'Tasting Note': bottle.notes,
-            Picture: bottle.photo ? 'Included in JSON backup' : '',
+            Picture: (bottle.photo || bottle.photoId) ? 'Included in JSON backup' : '',
             Price: bottle.price === null ? '' : bottle.price,
             'Price Year': bottle.priceYear === null ? '' : bottle.priceYear,
             'Year Bought': bottle.yearBought === null ? '' : bottle.yearBought,
@@ -674,7 +782,7 @@
     else if (button.id === 'settingsBtn') { updateCount(); openModal('settingsModal'); }
     else if (button.id === 'notesBtn') openNotes();
     else if (button.id === 'deleteBtn') deleteEntry();
-    else if (button.id === 'removePhotoBtn') { setPhotoPreview(''); toast('Picture removed'); }
+    else if (button.id === 'removePhotoBtn') { state.photoRemoved = true; setPhotoPreview(''); toast('Picture removed'); }
     else if (button.id === 'exportJsonBtn') exportJson();
     else if (button.id === 'exportXlsxBtn') exportExcel();
     else if (button.id === 'updateBtn') forceUpdate();
