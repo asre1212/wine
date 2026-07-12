@@ -109,3 +109,12 @@ After deploying, open your app once with `?fix=2.0.2` at the end of the GitHub P
 Bottle pictures now save in IndexedDB, the browser database designed for larger local data, instead of inside normal bottle records/localStorage. This should be much more reliable on iPhone Safari/PWA. JSON backup still includes pictures by reading them from the photo database during export.
 
 After deploying, open with `?fix=2.1.0`.
+
+
+## Version 2.1.1 Save button fix
+
+Found the actual cause of "picture doesn't save": the **Save** button itself was silently broken for every bottle, with or without a picture. The form's Save submit was being routed through a check on `document` that compared `event.target.id` to `'entryForm'` — but the form also has a hidden field named `id`, and named form fields shadow same-named properties on the `<form>` element in the browser. So `event.target.id` was returning that hidden `<input>` element instead of the string `"entryForm"`, the comparison was always false, and `saveEntry()` never ran. Tapping Save did nothing: no error, no toast, nothing written to storage. The three previous photo fixes (2.0.1, 2.0.2, 2.1.0) all targeted how photos were stored and never hit this, because it affected saving in general, not photos specifically.
+
+Fixed by attaching the submit listener directly to the form instead of relying on the shadowed `id` check.
+
+After deploying, use **Update from GitHub** (gear icon → Updates), or open with `?fix=2.1.1` once if the updater itself seems unresponsive.

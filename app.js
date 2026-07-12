@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.1.0';
+  var APP_VERSION = '2.1.1';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -452,7 +452,7 @@
 
   function saveEntry(event) {
     event.preventDefault();
-    var form = event.currentTarget;
+    var form = event.target;
     var rating = numberOrNull(formValue(form, 'rating'));
     if (rating !== null && (rating < 0 || rating > 5)) {
       toast('Rating must be between 0 and 5');
@@ -841,9 +841,8 @@
     document.addEventListener('click', handleClick);
     document.addEventListener('change', handleChange);
     document.addEventListener('input', handleInput);
-    document.addEventListener('submit', function (event) {
-      if (event.target && event.target.id === 'entryForm') saveEntry(event);
-    });
+    var entryForm = byId('entryForm');
+    if (entryForm) entryForm.addEventListener('submit', saveEntry);
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') document.querySelectorAll('.modal:not(.hidden)').forEach(closeModal);
       if ((event.key === 'Enter' || event.key === ' ') && event.target.classList && event.target.classList.contains('card')) {
