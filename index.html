@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.1.1" />
+  <link rel="stylesheet" href="style.css?v=2.2.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -133,14 +133,16 @@
         <div class="photo-field">
           <div class="photo-copy">
             <span>Bottle picture</span>
-            <p>Optional. Photos are resized on this phone and stored locally for speed.</p>
+            <p>Optional. Take a photo or pick one from your library. Resized on this phone, stored locally.</p>
           </div>
           <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+          <input id="photoLibraryInput" type="file" accept="image/*" hidden />
           <div class="photo-actions">
-            <label class="btn-ghost photo-pick" for="photoInput">Add picture</label>
+            <label class="btn-ghost photo-pick" for="photoInput">Take photo</label>
+            <label class="btn-ghost photo-pick" for="photoLibraryInput">Choose from library</label>
             <button type="button" id="removePhotoBtn" class="btn-ghost danger hidden">Remove</button>
           </div>
-          <figure id="photoPreview" class="photo-preview hidden" aria-label="Bottle picture preview">
+          <figure id="photoPreview" class="photo-preview hidden" aria-label="Bottle picture preview. Tap to view full screen.">
             <img alt="Bottle preview" />
           </figure>
         </div>
@@ -210,6 +212,14 @@
     </div>
   </div>
 
+  <!-- Full-screen photo viewer (tap anywhere to close) -->
+  <div id="photoViewerModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop photo-viewer-backdrop" data-close></div>
+    <figure class="photo-viewer" data-close role="dialog" aria-modal="true" aria-label="Bottle picture, full screen. Tap to close.">
+      <img alt="Bottle picture" />
+    </figure>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
@@ -226,7 +236,7 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.1.1"></script>
+  <script src="app.js?v=2.2.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>

@@ -736,7 +736,21 @@ input, select, textarea, button { font-size: 16px; }
 }
 
 /* Bottle photo — local, compressed preview */
-.card-sub .badge.photo-badge { color: var(--ink-soft); }
+.card.has-thumb { grid-template-columns: 42px 54px 1fr auto; }
+.card-thumb {
+  width: 54px;
+  height: 72px;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.card-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .photo-field {
   border-top: 1px solid var(--line);
@@ -781,12 +795,33 @@ input, select, textarea, button { font-size: 16px; }
   box-shadow: var(--shadow-1);
   overflow: hidden;
 }
+.photo-preview { cursor: zoom-in; }
 .photo-preview img {
   display: block;
   width: 100%;
   max-height: 420px;
   object-fit: contain;
   background: var(--paper-soft);
+}
+
+/* Full-screen photo viewer — tap anywhere to close */
+#photoViewerModal { z-index: 60; }
+.photo-viewer-backdrop { background: rgba(20, 15, 12, 0.88); }
+.photo-viewer {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  cursor: zoom-out;
+}
+.photo-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: var(--shadow-1);
 }
 .btn-primary:disabled,
 .btn-ghost:disabled {

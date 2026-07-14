@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.1.1';
+  var APP_VERSION = '2.2.0';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -126,7 +126,9 @@
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
+    // The photo viewer stacks on top of the entry sheet — only restore
+    // page scrolling once no modal is left open.
+    if (!document.querySelector('.modal:not(.hidden)')) document.body.style.overflow = '';
   }
 
   function styleLabel(bottle) {
@@ -221,7 +223,6 @@
     if (bottle.type) meta.push('<span class="badge">' + escapeHtml(bottle.type) + '</span>');
     if (bottle.category === 'wine' && bottle.subtype) meta.push('<span class="badge wine-style-badge">' + escapeHtml(bottle.subtype) + '</span>');
     if (bottle.cellar) meta.push('<span class="badge cellar-badge">untasted</span>');
-    if (bottle.photo || bottle.photoId) meta.push('<span class="badge photo-badge">picture</span>');
     if (bottle.yearDrank && !bottle.cellar) meta.push('<span>Drank ' + escapeHtml(bottle.yearDrank) + '</span>');
     if (bottle.yearBought) meta.push('<span>Bought ' + escapeHtml(bottle.yearBought) + '</span>');
     if (bottle.price !== null) meta.push('<span>$' + escapeHtml(bottle.price) + (bottle.priceYear ? ' · ' + escapeHtml(bottle.priceYear) : '') + '</span>');
@@ -232,8 +233,17 @@
       ? '<div class="rating-num unrated">In&nbsp;cellar</div>'
       : '<div class="rating-num">' + escapeHtml(displayRating(bottle.rating)) + '</div><div class="rating-out">out of 5</div>';
     var rankLabel = rank ? '№ ' + String(rank).padStart(2, '0') : (bottle.cellar ? '—' : '');
-    return '<article class="card ' + (bottle.cellar ? 'cellar' : 'tasted') + '" data-id="' + escapeHtml(bottle.id) + '" tabindex="0">' +
+    var hasThumb = !!(bottle.photoId || bottle.photo);
+    var thumbHtml = '';
+    if (hasThumb) {
+      // Legacy bottles may still carry the picture inline; newer ones load lazily from IndexedDB.
+      thumbHtml = bottle.photo
+        ? '<div class="card-thumb"><img alt="" src="' + escapeHtml(bottle.photo) + '" /></div>'
+        : '<div class="card-thumb" data-photo-id="' + escapeHtml(bottle.photoId) + '"></div>';
+    }
+    return '<article class="card ' + (bottle.cellar ? 'cellar' : 'tasted') + (hasThumb ? ' has-thumb' : '') + '" data-id="' + escapeHtml(bottle.id) + '" tabindex="0">' +
       '<div class="card-rank">' + escapeHtml(rankLabel) + '</div>' +
+      thumbHtml +
       '<div class="card-main"><h3 class="card-title">' + escapeHtml(bottle.name) + '</h3>' +
       '<div class="card-sub">' + metaHtml + '</div>' +
       (bottle.notes ? '<p class="card-notes">' + escapeHtml(bottle.notes) + '</p>' : '') + '</div>' +
@@ -254,6 +264,7 @@
     var ranks = computeRanks();
     if (state.sortBy !== 'rating-desc' && state.sortBy !== 'rating-asc') {
       list.innerHTML = bottles.map(function (bottle) { return cardHtml(bottle, ranks[bottle.id]); }).join('');
+      hydrateCardThumbs();
       return;
     }
     var groups = {};
@@ -267,6 +278,7 @@
       return '<div class="group-header">' + escapeHtml(label) + '</div>' +
         groups[name].map(function (bottle) { return cardHtml(bottle, ranks[bottle.id]); }).join('');
     }).join('');
+    hydrateCardThumbs();
   }
 
   function updateCount() {
@@ -373,13 +385,48 @@
 
   function deletePhoto(photoId) {
     if (!photoId) return Promise.resolve();
+    delete thumbCache[photoId];
     return photoDbAction('readwrite', function (store) { return store.delete(photoId); }).catch(function () {});
+  }
+
+  // List thumbnails: filled in asynchronously from IndexedDB after each render,
+  // and kept in memory so re-renders (search, filter, sort) stay instant.
+  // Rendering never waits on a photo — the app stays quick to open.
+  var thumbCache = {};
+
+  function hydrateThumb(element) {
+    if (element.dataset.hydrated) return;
+    element.dataset.hydrated = '1';
+    var photoId = element.getAttribute('data-photo-id');
+    if (!photoId) return;
+    var apply = function (dataUrl) {
+      if (!dataUrl || !element.isConnected) return;
+      thumbCache[photoId] = dataUrl;
+      var image = document.createElement('img');
+      image.alt = '';
+      image.src = dataUrl;
+      element.appendChild(image);
+    };
+    if (thumbCache[photoId]) { apply(thumbCache[photoId]); return; }
+    loadPhoto(photoId).then(apply).catch(function () {});
+  }
+
+  function hydrateCardThumbs() {
+    document.querySelectorAll('.card-thumb[data-photo-id]').forEach(hydrateThumb);
+  }
+
+  function openPhotoViewer(src) {
+    if (!src) return;
+    var modal = byId('photoViewerModal');
+    if (!modal) return;
+    var image = modal.querySelector('img');
+    if (image) image.src = src;
+    openModal('photoViewerModal');
   }
 
   function setPhotoPreview(dataUrl) {
     var preview = byId('photoPreview');
     var remove = byId('removePhotoBtn');
-    var pick = document.querySelector('.photo-pick');
     // Keep photo data out of forms and out of localStorage bottle records.
     // It is saved separately in IndexedDB when the user taps Save.
     state.draftPhoto = dataUrl || '';
@@ -390,12 +437,10 @@
       if (image) image.src = dataUrl;
       preview.classList.remove('hidden');
       if (remove) remove.classList.remove('hidden');
-      if (pick) pick.textContent = 'Change picture';
     } else {
       if (image) image.removeAttribute('src');
       preview.classList.add('hidden');
       if (remove) remove.classList.add('hidden');
-      if (pick) pick.textContent = 'Add picture';
     }
   }
 
@@ -492,6 +537,7 @@
     photoWork.then(function () {
       if (oldPhotoId && oldPhotoId !== bottle.photoId) deletePhoto(oldPhotoId);
       if (!persistBottles(next)) return;
+      if (state.draftPhoto && bottle.photoId) thumbCache[bottle.photoId] = state.draftPhoto;
       state.bottles = next;
       state.draftPhoto = '';
       state.photoRemoved = false;
@@ -509,8 +555,10 @@
     var form = byId('entryForm');
     var id = form ? formValue(form, 'id') : '';
     if (!id || !confirm('Delete this bottle? This cannot be undone.')) return;
+    var bottle = state.bottles.find(function (item) { return item.id === id; });
     var next = state.bottles.filter(function (item) { return item.id !== id; });
     if (!persistBottles(next)) return;
+    if (bottle && bottle.photoId) deletePhoto(bottle.photoId);
     state.bottles = next;
     closeModal(byId('entryModal'));
     renderList();
@@ -774,6 +822,17 @@
     }
     var close = event.target.closest('[data-close]');
     if (close) { closeModal(close.closest('.modal')); return; }
+    var preview = event.target.closest('#photoPreview');
+    if (preview) {
+      var previewImage = preview.querySelector('img');
+      if (previewImage && previewImage.src) { openPhotoViewer(previewImage.src); return; }
+    }
+    var thumb = event.target.closest('.card-thumb');
+    if (thumb) {
+      var thumbImage = thumb.querySelector('img');
+      // Tap the picture to see it full screen; if it has not loaded yet, open the bottle instead.
+      if (thumbImage && thumbImage.src) { openPhotoViewer(thumbImage.src); return; }
+    }
     var card = event.target.closest('.card');
     if (card) { openEntry(card.dataset.id); return; }
     var button = event.target.closest('button');
@@ -800,7 +859,7 @@
     else if (target.id === 'importInput') {
       if (target.files && target.files[0]) importJson(target.files[0]);
       target.value = '';
-    } else if (target.id === 'photoInput' && target.files && target.files[0]) {
+    } else if ((target.id === 'photoInput' || target.id === 'photoLibraryInput') && target.files && target.files[0]) {
       var submit = document.querySelector('#entryForm button[type="submit"]');
       if (submit) submit.disabled = true;
       toast('Optimizing picture…');
@@ -865,6 +924,12 @@
 
   window.addEventListener('error', function (event) {
     console.error('Cellar error', event.error || event.message);
+    toast('Cellar hit an error. Refresh or use Update from GitHub.', 4200);
+  });
+
+  // Async failures (IndexedDB, photo work) must never fail silently.
+  window.addEventListener('unhandledrejection', function (event) {
+    console.error('Cellar promise error', event.reason);
     toast('Cellar hit an error. Refresh or use Update from GitHub.', 4200);
   });
 

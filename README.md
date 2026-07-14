@@ -118,3 +118,14 @@ Found the actual cause of "picture doesn't save": the **Save** button itself was
 Fixed by attaching the submit listener directly to the form instead of relying on the shadowed `id` check.
 
 After deploying, use **Update from GitHub** (gear icon → Updates), or open with `?fix=2.1.1` once if the updater itself seems unresponsive.
+
+
+## Version 2.2.0 pictures you can actually see
+
+- **Thumbnails in the list.** Bottles with a picture now show a small photo on their card instead of a text badge. Thumbnails load in the background after the list renders (with an in-memory cache), so the app opens just as fast.
+- **Tap to view full screen.** Tap a thumbnail in the list, or the preview inside a bottle's edit sheet, to see the picture full screen. Tap anywhere to close.
+- **Take photo / Choose from library.** Two separate buttons: one opens the camera directly, the other picks from the photo library.
+- **No more orphaned pictures.** Deleting a bottle now also deletes its picture from the photo database.
+- **Silent failures surface.** Unhandled async errors now show the standard error toast instead of failing invisibly.
+
+After deploying, use **Update from GitHub** (gear icon → Updates).
