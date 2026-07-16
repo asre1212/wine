@@ -308,3 +308,55 @@ the product working and builds a **site-tailored clone**. What stops them?
 3. Trademark the name (~$350) →
 4. Provisional patent on the prep-aware gating mechanism (~$2–5k, optional) →
 5. Full utility patent only if the pilot proves the market (defer the $25k).
+
+---
+
+## 10. Third-party waitlist/backfill apps on non-Epic EMRs (July 2026 survey)
+
+Outside Epic there is no MyChart, so **every product in this space is SMS/email-first by
+default** — the third-party model is the norm, not the workaround.
+
+### Oracle Health (Cerner)
+- **Luma Health Smart Waitlist for Oracle Health** — automated backfill integrated with
+  Cerner Millennium: https://go.lumahealth.io/luma-smart-waitlist-for-oracle-health
+- **Relatient Dash** — listed in the Cerner App Gallery with self-scheduling + waitlist:
+  https://www.relatient.com/relatient-joins-cerner-app-gallery-with-mobile-first-self-scheduling-and-waitlist/
+- **Curogram** — appointment texting/backfill for Oracle Health users:
+  https://curogram.com/en-us/oracle-health-integration-curogram/appointment-reminders-oracle-health-users
+
+### athenahealth (most developer-friendly)
+- athenahealth exposes a **public Appointment Waitlist API** — a documented endpoint for
+  exactly this workflow (far easier than Epic's program):
+  https://docs.athenahealth.com/api/api-ref/appointment-waitlist (plus
+  https://docs.athenahealth.com/api/api-ref/appointment-slot)
+- athenahealth is also shipping **native AI-driven waitlist scheduling** that auto-refills
+  cancellations — same "platform absorbs the feature" risk as Epic Fast Pass.
+- Third-party apps in the athenahealth Marketplace (https://marketplace.athenahealth.com/):
+  **Curogram** waitlist-backfill engine
+  (https://curogram.com/blog/emr-integration/athenahealth/waitlist-backfill-same-day-cancellation-sms-automation)
+  and **Emitrr**
+  (https://emitrr.com/blog/how-to-minimize-empty-slots-with-waitlist-automation-in-athenahealth/).
+- Notable for GI: many mid-size GI groups run **athenahealth + Provation** for endoscopy —
+  so an athena-first build may reach independent GI/ASCs faster than Epic ever will.
+
+### NextGen
+- NextGen's own **Self Scheduling module is white-labeled Luma**, including Smart Waitlist:
+  https://www.nextgen.com/solutions/patient-experience/patient-self-scheduling — i.e., the
+  "third party" is already inside the platform.
+
+### eClinicalWorks / MEDITECH
+- No dominant native waitlist feature; covered by the cross-EHR engagement platforms
+  (Luma, Curogram, Emitrr, WaitWell, Prosper AI, Cevi AI) via HL7/FHIR interfaces.
+  Example roundups: https://waitwellsoftware.com/resources/articles/best-patient-scheduling-software/
+
+### GI-specific EHR/PM systems — the interesting gap
+- **ModMed gGastro** (the dominant GI-specialty EHR/PM for independent practices) has
+  scheduling, reminders, kiosk, and portal — but **no prep-aware automated waitlist
+  backfill** surfaced: https://www.modmed.com/specialties/gastroenterology/practice-management/
+- **Provation Apex** is procedure *documentation*, not scheduling:
+  https://www.provationmedical.com/apex/
+- Meaning: the prep-aware gap-filling niche is open on the **non-Epic side too**, and the
+  independent-GI/ASC market (gGastro or athena+Provation shops) has shorter sales cycles,
+  no Showroom gatekeeping, and a public API path (athena). A plausible strategy inversion:
+  **launch on athenahealth/ASC market first, use the revenue and outcomes data to earn the
+  Epic health-system market later.**
