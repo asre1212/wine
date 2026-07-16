@@ -35,7 +35,7 @@ review, no vendor contract, and no development.
 | **Artera** (formerly WELL Health) | Patient messaging + waitlist/backfill workflows | No |
 | **Relatient / QueueDr** | Automated schedule backfill; claims ~10% utilization lift | No |
 | **DocASAP, Notable, Prosper AI** | Access/scheduling automation with EHR integration | No |
-| **Aescia Health** | **Prep-aware** waitlist backfill for endoscopy/ASCs — routes freed colonoscopy slots only to patients who can be prep-ready in time | **Yes — direct competitor** |
+| **Aescia Health** | **Prep-aware** waitlist backfill for endoscopy/ASCs — routes freed colonoscopy slots only to patients who can be prep-ready in time | **Yes — but** based in Sydney/Montréal and pre-first-customer (running a design-partner program), so **not an established US program** |
 
 **Conclusion:** a generic "notify waitlist, first-accept wins" app is a solved problem and
 not viable as a new product. The defensible wedge is the part Epic Fast Pass and the generic
@@ -221,3 +221,90 @@ reimbursement*, shown on a dashboard they can screenshot into their own leadersh
    app can't fully deliver it; be honest that the channel is SMS-first.
 5. **Clinical safety optics** — a backfilled patient who skipped a med hold is a serious
    event; the eligibility engine must fail closed (when in doubt, don't offer).
+
+---
+
+## 8. Verified US programs that do this with Epic (link check, July 2026)
+
+The honest headline: **the only proven, US-deployed, Epic-integrated program doing
+waitlist gap-filling specifically for GI endoscopy is Epic's own Fast Pass.** Third-party
+US vendors do it generically (any specialty); the one endoscopy-specific vendor found
+(Aescia) is foreign-based and pre-customer.
+
+### Epic Fast Pass used for GI endoscopy in US health systems (published evidence)
+- **npj Health Systems (Nature) — "Implementing Epic Fast Pass for echocardiogram and
+  endoscopy"** — peer-reviewed implementation report of Fast Pass for endoscopy:
+  https://www.nature.com/articles/s44401-024-00005-0
+  (preprint: https://www.researchsquare.com/article/rs-4869598/v1)
+- **UCSF retrospective cohort study (JMIR/PMC)** — Fast Pass across UCSF filled 11% of
+  canceled slots (~$3M revenue); for endoscopy, 48% of offers were accepted with an
+  average **50-day** wait-time improvement, 96% of offers being colonoscopies:
+  https://pmc.ncbi.nlm.nih.gov/articles/PMC10988365/
+- **EpicShare write-up of the UCSF work**:
+  https://www.epicshare.org/news-watch/ucsf-uses-automated-self-rescheduling-tool-to-improve-patient-access
+- **Duke Health MyChart Waitlist Offers patient guide** (operational detail of the
+  offer/claim flow): https://lms.duhs.duke.edu/prodcontent/DHAS/DHAS-0024/1.6/story_content/external_files/MyChart%20Waitlist%20Offers%20Guide.pdf
+- **Epic product page**: https://www.epic.com/software/appointment-scheduling/
+
+### US third-party vendors with Epic-integrated waitlist/backfill (general, not GI-specific)
+- **Luma Health — Smart Waitlist**: https://www.lumahealth.io/patient-success-platform/patient-waitlist/
+  and Epic integration: https://www.lumahealth.io/luma-integrated-with-epic/
+- **Relatient — Dash Schedule (absorbed QueueDr's automated waitlist)**:
+  https://www.relatient.com/dash-epic-ehr-software-integration/ and
+  https://www2.relatient.net/patient-self-scheduling-automated-waitlist/
+- **Artera** — automated waitlist backfill for surgical/procedural slots (marketed for
+  ortho; Epic listing is for self-rescheduling): https://artera.io/blog/patient-no-shows/
+
+### Endoscopy-specific (not US-established)
+- **Aescia Health — prep-aware backfill**: https://www.aesciahealth.com/prep-aware-backfill
+  — Sydney/Montréal, pre-first-customer, recruiting US ASC design partners.
+
+### Link-reliability notes
+- These URLs were verified against live search indexes in July 2026, but several of these
+  sites (lumahealth.io, aesciahealth.com, marketplace.aviahealth.com) sit behind
+  bot-protection/CDNs that return **403 to automated fetchers and some corporate
+  networks** — if a link "doesn't work," retry in a normal browser off VPN.
+- The AVIA Marketplace FastPass listing (https://marketplace.aviahealth.com/product/25004)
+  appears login-gated.
+- Vendor marketing pages move often; the stable citations are the Nature/PMC papers above.
+
+---
+
+## 9. IP protection — what actually protects you (and what doesn't)
+
+*Not legal advice; engage a health-tech IP attorney before the design-partner phase.*
+
+The scenario to plan for: someone (Epic, a vendor, or a hospital's internal IT team) sees
+the product working and builds a **site-tailored clone**. What stops them?
+
+| Protection | What it covers | Honest strength here |
+|---|---|---|
+| **Copyright** | Your actual code, UI, docs — automatic, free | **Weak vs. clones.** Protects against copying your code, not against reimplementing the idea. A hospital that builds its own version from scratch infringes nothing. |
+| **Utility patent** | The method/system, if granted | **Weak-to-moderate.** Post-*Alice v. CLS Bank* (2014), "scheduling/notification on a computer" claims are routinely invalidated as abstract ideas. A claim has a chance only if drafted around a *specific technical mechanism* (e.g., the prep-readiness computation combining med-hold windows, prep pharmacokinetics, and slot lead-time into a fail-closed offer gate). Cost: ~$15–30k+ and 2–4 years. A **provisional patent (~$2–5k)** is the pragmatic move: it timestamps the invention for 12 months while you validate. |
+| **Trade secret** | Eligibility rules, ranking models, accept-likelihood data, per-site config playbooks | **Your strongest legal tool.** Costs nothing but discipline: keep the engine server-side (never ship logic to the browser or the customer's Epic instance), NDAs with every design partner, confidentiality + no-reverse-engineering clauses in customer contracts, access controls and logging. Trade secrets survive as long as you keep them secret — and a site-tailored clone built by ex-partners using your rules is actionable misappropriation. |
+| **Trademark** | The product name/brand | Cheap (~$350/class) and worth doing early — in hospital procurement, the *name attached to published outcomes* is the asset. |
+| **Contracts** | Whatever you negotiate | The real workhorse: design-partner agreements that state **you own all IP and generalized learnings**; customer terms barring reverse engineering and competitive benchmarking; IP-assignment agreements with every contractor. |
+
+### Three special traps for this product
+
+1. **Your employer may own it.** If you're clinical staff and build this using hospital
+   time, data, Epic access, or resources, most academic/health-system IP policies give the
+   institution ownership or a license. Get a written determination from the tech-transfer /
+   innovation office **before** writing code, or build entirely on personal time/equipment
+   against Epic's public sandbox (fhir.epic.com) and document that separation.
+2. **Nothing stops Epic.** Fast Pass is theirs; if prep-aware offers prove valuable, Epic
+   can add the feature natively, and Epic's vendor-program terms will not let you patent
+   your way into blocking them. The defense is speed + published outcomes + multi-EHR
+   reach, not IP.
+3. **Nothing stops a hospital's internal build.** A health system can lawfully build a
+   site-tailored version with its own Epic tooling (Cadence rules + Fast Pass config get
+   surprisingly far). Your protection is making the *maintained product* cheaper than an
+   internal build: continuously updated prep protocols (GLP-1 guidance changes yearly),
+   cross-site benchmarks, SOC 2, support — the things one hospital's IT shop won't sustain.
+
+### Priority order (pragmatic)
+1. Written IP clarity with your institution (free, existential) →
+2. Trade-secret hygiene + contractor IP assignment (cheap, immediate) →
+3. Trademark the name (~$350) →
+4. Provisional patent on the prep-aware gating mechanism (~$2–5k, optional) →
+5. Full utility patent only if the pilot proves the market (defer the $25k).
