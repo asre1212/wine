@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.0';
+  var APP_VERSION = '2.3.0';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -657,19 +657,57 @@
   }
 
   function exportJson() {
-    toast('Preparing backup…');
-    Promise.all(state.bottles.map(function (bottle) {
-      if (bottle.photo) return Promise.resolve(bottle);
-      if (!bottle.photoId) return Promise.resolve(bottle);
+    // Pictures ship in their own package (Export Pictures) so this core
+    // backup stays small enough to email or AirDrop without trouble.
+    var bottles = state.bottles.map(function (bottle) {
+      var copy = Object.assign({}, bottle);
+      if (copy.photo) { copy.photoId = copy.photoId || copy.id; copy.photo = ''; }
+      return copy;
+    });
+    var payload = { app: 'cellar', version: 4, exportedAt: new Date().toISOString(), photos: 'separate', bottles: bottles, notes: loadNotes() };
+    download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'cellar-backup-' + dateStamp() + '.json');
+    var hasPhotos = state.bottles.some(function (bottle) { return bottle.photoId || bottle.photo; });
+    toast(hasPhotos ? 'Backup exported. Use Export Pictures for photos.' : 'Backup exported', 3200);
+  }
+
+  function exportPhotos() {
+    toast('Packing pictures…');
+    var jobs = state.bottles.map(function (bottle) {
+      // Legacy bottles may still carry the picture inline; everything newer
+      // lives in IndexedDB under the bottle's photoId.
+      if (bottle.photo) return Promise.resolve({ id: bottle.photoId || bottle.id, dataUrl: bottle.photo });
+      if (!bottle.photoId) return Promise.resolve(null);
       return loadPhoto(bottle.photoId).then(function (dataUrl) {
-        var copy = Object.assign({}, bottle);
-        copy.photo = dataUrl || '';
-        return copy;
-      }).catch(function () { return bottle; });
-    })).then(function (bottles) {
-      var payload = { app: 'cellar', version: 3, exportedAt: new Date().toISOString(), bottles: bottles, notes: loadNotes() };
-      download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'cellar-backup-' + dateStamp() + '.json');
-      toast('Backup exported');
+        return dataUrl ? { id: bottle.photoId, dataUrl: dataUrl } : null;
+      }).catch(function () { return null; });
+    });
+    Promise.all(jobs).then(function (items) {
+      var photos = {};
+      var count = 0;
+      items.forEach(function (item) {
+        if (item && item.dataUrl && !photos[item.id]) { photos[item.id] = item.dataUrl; count += 1; }
+      });
+      if (!count) { toast('No pictures to export yet'); return; }
+      var payload = { app: 'cellar', kind: 'photos', version: 1, exportedAt: new Date().toISOString(), photos: photos };
+      download(new Blob([JSON.stringify(payload)], { type: 'application/json' }), 'cellar-photos-' + dateStamp() + '.json');
+      toast(count + (count === 1 ? ' picture' : ' pictures') + ' exported');
+    });
+  }
+
+  function importPhotos(photos) {
+    var ids = Object.keys(photos).filter(function (id) {
+      return typeof photos[id] === 'string' && photos[id].indexOf('data:image/') === 0;
+    });
+    if (!ids.length) { toast('No pictures found in that file'); return; }
+    if (!confirm('Import ' + ids.length + (ids.length === 1 ? ' picture' : ' pictures') + '? Existing pictures for the same bottles will be replaced.')) return;
+    toast('Restoring pictures…');
+    Promise.all(ids.map(function (id) { return savePhoto(id, photos[id]); })).then(function () {
+      ids.forEach(function (id) { delete thumbCache[id]; });
+      renderList();
+      toast('Imported ' + ids.length + (ids.length === 1 ? ' picture' : ' pictures'));
+    }).catch(function (error) {
+      console.error(error);
+      toast('Some pictures could not be saved. Try again with more free space.', 4200);
     });
   }
 
@@ -679,6 +717,11 @@
     reader.onload = function () {
       try {
         var parsed = JSON.parse(reader.result);
+        // A pictures package restores photos only; bottle backups are handled below.
+        if (parsed && !Array.isArray(parsed) && parsed.kind === 'photos' && parsed.photos && typeof parsed.photos === 'object') {
+          importPhotos(parsed.photos);
+          return;
+        }
         var incoming = Array.isArray(parsed) ? parsed : parsed.bottles;
         if (!Array.isArray(incoming)) throw new Error('Invalid backup');
         if (!confirm('Import ' + incoming.length + ' bottles? Existing entries with the same ID will be replaced.')) return;
@@ -843,6 +886,7 @@
     else if (button.id === 'deleteBtn') deleteEntry();
     else if (button.id === 'removePhotoBtn') { state.photoRemoved = true; setPhotoPreview(''); toast('Picture removed'); }
     else if (button.id === 'exportJsonBtn') exportJson();
+    else if (button.id === 'exportPhotosBtn') exportPhotos();
     else if (button.id === 'exportXlsxBtn') exportExcel();
     else if (button.id === 'updateBtn') forceUpdate();
   }

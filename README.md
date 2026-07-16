@@ -10,7 +10,7 @@ Wine has a second optional style field below the top-level type. Red, White, Ros
 
 ### Bottle pictures
 
-Each bottle entry can include one local picture from the iPhone camera roll, camera, or screenshot. The app resizes the image in-browser to a small WebP/JPEG data image before saving it with the entry in local storage. Pictures are included in JSON backup/import. Excel export marks whether a picture exists, but does not embed the image file.
+Each bottle entry can include one local picture from the iPhone camera roll, camera, or screenshot. The app resizes the image in-browser to a small JPEG thumbnail and stores it in IndexedDB. Pictures move between phones via their own **Export Pictures** package (kept separate so the core JSON backup stays small). Excel export marks whether a picture exists, but does not embed the image file.
 
 
 - Three sections: **Wine**, **Sake**, **Liquor**, each with its own type categories.
@@ -20,7 +20,7 @@ Each bottle entry can include one local picture from the iPhone camera roll, cam
 - Auto-ranking within each category by type, sorted by rating.
 - Filter by type / status, search by name or note.
 - A small "Notes" link in the top bar opens a free-form scratchpad (places to buy from, recommendations, gift ideas). Saved automatically; included in JSON backup and Excel export.
-- **Backup**: export/import full collection as JSON (use this when moving phones).
+- **Backup**: export/import the collection as JSON, plus a separate pictures package so photos sync across when moving phones without bloating the core backup file.
 - **Excel export**: `.xlsx` workbook, one sheet per category.
 - Works offline once installed.
 
@@ -30,9 +30,9 @@ Each bottle entry can include one local picture from the iPhone camera roll, cam
 2. Tap the **Share** icon → **Add to Home Screen**.
 3. Launch from the home-screen icon. It now runs full-screen and offline.
 
-Data is stored in the browser's `localStorage` for that origin. To move to a new phone:
-- On old phone → Settings (gear icon) → **Export JSON**, AirDrop / email the file to the new phone.
-- On new phone → install the PWA → Settings → **Import JSON**.
+Data is stored in the browser's `localStorage` (pictures in IndexedDB) for that origin. To move to a new phone:
+- On old phone → Settings (gear icon) → **Export JSON**, then **Export Pictures**, AirDrop / email both files to the new phone.
+- On new phone → install the PWA → Settings → **Import JSON / Pictures**, once for each file (either order works).
 
 ## Deploy to GitHub Pages
 
@@ -127,5 +127,17 @@ After deploying, use **Update from GitHub** (gear icon → Updates), or open wit
 - **Take photo / Choose from library.** Two separate buttons: one opens the camera directly, the other picks from the photo library.
 - **No more orphaned pictures.** Deleting a bottle now also deletes its picture from the photo database.
 - **Silent failures surface.** Unhandled async errors now show the standard error toast instead of failing invisibly.
+
+After deploying, use **Update from GitHub** (gear icon → Updates).
+
+
+## Version 2.3.0 photos sync in a separate package
+
+Moving phones now transfers pictures reliably, in their own file:
+
+- **Export JSON** now exports bottles and notes only — a small file that's quick to AirDrop or email, no matter how many pictures you have.
+- **Export Pictures** creates a separate `cellar-photos-*.json` package containing every bottle picture, keyed to its bottle.
+- **Import JSON / Pictures** is one button: it detects which file you gave it. Import both files (either order) on the new phone and photos reattach to their bottles automatically.
+- Older combined backups (v3 and earlier, with pictures embedded) still import exactly as before.
 
 After deploying, use **Update from GitHub** (gear icon → Updates).

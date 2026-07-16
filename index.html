@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.2.0" />
+  <link rel="stylesheet" href="style.css?v=2.3.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -167,9 +167,10 @@
       <div class="settings-body">
         <div class="setting-group">
           <h3>Backup</h3>
-          <p class="muted">Export a JSON file of your full collection. Use this to move between phones.</p>
+          <p class="muted">Move between phones with two small files: a JSON backup of bottles and notes, and a separate pictures package. Import accepts either file — bring both across and your photos sync too.</p>
           <button id="exportJsonBtn" class="btn-primary">Export JSON</button>
-          <label class="btn-ghost" for="importInput">Import JSON</label>
+          <button id="exportPhotosBtn" class="btn-primary">Export Pictures</button>
+          <label class="btn-ghost" for="importInput">Import JSON / Pictures</label>
           <input id="importInput" type="file" accept="application/json" hidden />
         </div>
         <div class="setting-group">
@@ -236,7 +237,7 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.2.0"></script>
+  <script src="app.js?v=2.3.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>
