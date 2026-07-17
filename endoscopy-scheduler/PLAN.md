@@ -360,3 +360,39 @@ default** — the third-party model is the norm, not the workaround.
   no Showroom gatekeeping, and a public API path (athena). A plausible strategy inversion:
   **launch on athenahealth/ASC market first, use the revenue and outcomes data to earn the
   Epic health-system market later.**
+
+### 10a. Integrating with ModMed gGastro — feasibility (checked July 2026)
+
+Verdict: **yes, and notably easier than Epic.** ModMed runs a public developer portal
+(https://portal.api.modmed.com/) with a FHIR R4 API that explicitly covers **both the
+EMA/MMPM platform and gGastro**, and everything the core loop needs is documented:
+
+- **Slot search** for open times (https://portal.api.modmed.com/reference/slot) — note the
+  constraint that slot searches run in **5-day increments**, so the gap-watcher polls in
+  rolling windows.
+- **Appointment create/update** against a valid Slot
+  (https://portal.api.modmed.com/reference/appoitments-and-slots) — i.e., true booking
+  write-back, not just read access.
+- OAuth2 auth, a **sandbox environment**, and CREATE/READ/SEARCH/UPDATE operations in the
+  proprietary/partner API (MMI API docs:
+  https://www.modmed.com/wp-content/uploads/2023/04/MMI-API-Documentation-April-2023.pdf).
+- Enablement is per-practice via **feature flags requested through synapsys@modmed.com**
+  (ModMed's Synapsys interoperability program:
+  https://www.modmed.com/modmed-synapsys-api/). Practices have reported API access priced
+  around **$25/provider/month** — a real but small line item to fold into pricing.
+- Proof it works for this exact use case: **Relatient Dash already does bi-directional
+  scheduling with ModMed via these FHIR APIs**
+  (https://www.relatient.com/modmed-ehr-dash-integration/).
+
+Differences vs. Epic worth planning around:
+1. **Gap detection is polling-based** — no documented real-time SIU-style cancellation
+   feed on the public API, so the watcher polls Appointments/Slots on a short interval
+   (fine for offers with hours-to-days lead time, which prep-aware offers inherently have).
+2. **No MyChart equivalent** — notifications are SMS/email with a claim link (which was
+   the plan anyway); gGastro's gPortal is not a notification channel for third parties.
+3. **Partner agreement, not app-store review** — a vendor/API license with ModMed replaces
+   Epic's Showroom process; expect weeks, not the months of an Epic security cycle.
+
+Combined with §10's market logic, this makes **gGastro + athenahealth the pragmatic
+launch surface**: same eligibility engine, two APIs, thousands of independent GI practices
+and ASCs, no health-system procurement in the critical path.
