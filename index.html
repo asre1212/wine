@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.3.0" />
+  <link rel="stylesheet" href="style.css?v=2.4.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -42,6 +42,7 @@
         <option value="all">All bottles</option>
         <option value="drank">Tasted</option>
         <option value="cellar">In cellar</option>
+        <option value="wantToTry">Want to try</option>
       </select>
       <select id="sortBy" class="select">
         <option value="rating-desc">Rating ↓</option>
@@ -93,6 +94,11 @@
             <input type="checkbox" name="cellar" />
             <span>Still in cellar (not yet tasted)</span>
           </label>
+          <label class="field check">
+            <input type="checkbox" name="wantToTry" />
+            <span>Want to try</span>
+          </label>
+          <p class="muted small">Want to try bottles appear last within their type or wine style.</p>
         </div>
 
         <label class="field rating-field">
@@ -237,7 +243,7 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.3.0"></script>
+  <script src="app.js?v=2.4.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>

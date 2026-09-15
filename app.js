@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.3.0';
+  var APP_VERSION = '2.4.0';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -68,7 +68,8 @@
       type: source.type || 'Other',
       subtype: category === 'wine' ? (source.subtype || '') : '',
       name: source.name || 'Untitled',
-      cellar: !!source.cellar,
+      cellar: !source.wantToTry && !!source.cellar,
+      wantToTry: !!source.wantToTry,
       rating: numberOrNull(source.rating),
       notes: source.notes || '',
       photo: typeof source.photo === 'string' ? source.photo : '',
@@ -152,8 +153,9 @@
     return state.bottles.filter(function (bottle) {
       if (bottle.category !== state.category) return false;
       if (state.typeFilter && bottle.type !== state.typeFilter) return false;
-      if (state.statusFilter === 'drank' && bottle.cellar) return false;
+      if (state.statusFilter === 'drank' && (bottle.cellar || bottle.wantToTry)) return false;
       if (state.statusFilter === 'cellar' && !bottle.cellar) return false;
+      if (state.statusFilter === 'wantToTry' && !bottle.wantToTry) return false;
       if (!query) return true;
       return String(bottle.name || '').toLowerCase().indexOf(query) >= 0 ||
         String(bottle.notes || '').toLowerCase().indexOf(query) >= 0 ||
@@ -163,12 +165,14 @@
   }
 
   function ratingValue(bottle) {
-    if (bottle.cellar || bottle.rating === null) return -1;
+    if (bottle.cellar || bottle.wantToTry || bottle.rating === null) return -1;
     return Number(bottle.rating);
   }
 
   function sortBottles(bottles) {
     return bottles.slice().sort(function (a, b) {
+      var wantedOrder = Number(!!a.wantToTry) - Number(!!b.wantToTry);
+      if (wantedOrder) return wantedOrder;
       if (state.sortBy === 'rating-asc') return ratingValue(a) - ratingValue(b) || a.name.localeCompare(b.name);
       if (state.sortBy === 'name') return a.name.localeCompare(b.name);
       if (state.sortBy === 'recent') return b.createdAt - a.createdAt;
@@ -181,7 +185,7 @@
     var groups = {};
     var ranks = {};
     state.bottles.forEach(function (bottle) {
-      if (bottle.category !== state.category || bottle.cellar || bottle.rating === null) return;
+      if (bottle.category !== state.category || bottle.cellar || bottle.wantToTry || bottle.rating === null) return;
       var key = styleLabel(bottle);
       if (!groups[key]) groups[key] = [];
       groups[key].push(bottle);
@@ -223,13 +227,15 @@
     if (bottle.type) meta.push('<span class="badge">' + escapeHtml(bottle.type) + '</span>');
     if (bottle.category === 'wine' && bottle.subtype) meta.push('<span class="badge wine-style-badge">' + escapeHtml(bottle.subtype) + '</span>');
     if (bottle.cellar) meta.push('<span class="badge cellar-badge">untasted</span>');
-    if (bottle.yearDrank && !bottle.cellar) meta.push('<span>Drank ' + escapeHtml(bottle.yearDrank) + '</span>');
+    if (bottle.yearDrank && !bottle.cellar && !bottle.wantToTry) meta.push('<span>Drank ' + escapeHtml(bottle.yearDrank) + '</span>');
     if (bottle.yearBought) meta.push('<span>Bought ' + escapeHtml(bottle.yearBought) + '</span>');
     if (bottle.price !== null) meta.push('<span>$' + escapeHtml(bottle.price) + (bottle.priceYear ? ' · ' + escapeHtml(bottle.priceYear) : '') + '</span>');
     var metaHtml = meta.map(function (part, index) {
       return (index ? '<span class="sep"></span>' : '') + part;
     }).join('');
-    var ratingHtml = bottle.cellar || bottle.rating === null
+    var ratingHtml = bottle.wantToTry
+      ? '<div class="rating-num unrated">Want to<br>try</div>'
+      : bottle.cellar || bottle.rating === null
       ? '<div class="rating-num unrated">In&nbsp;cellar</div>'
       : '<div class="rating-num">' + escapeHtml(displayRating(bottle.rating)) + '</div><div class="rating-out">out of 5</div>';
     var rankLabel = rank ? '№ ' + String(rank).padStart(2, '0') : (bottle.cellar ? '—' : '');
@@ -459,6 +465,7 @@
     if (bottle) {
       form.elements.name.value = bottle.name;
       form.elements.cellar.checked = bottle.cellar;
+      form.elements.wantToTry.checked = bottle.wantToTry;
       form.elements.rating.value = bottle.rating === null ? '' : bottle.rating;
       form.elements.notes.value = bottle.notes;
       form.elements.price.value = bottle.price === null ? '' : bottle.price;
@@ -478,7 +485,7 @@
     if (title) title.textContent = bottle ? 'Edit Bottle' : 'New ' + CATEGORY_LABELS[category];
     var deleteButton = byId('deleteBtn');
     if (deleteButton) deleteButton.classList.toggle('hidden', !bottle);
-    setCellarFormState(!!(bottle && bottle.cellar));
+    setCellarFormState(!!(bottle && (bottle.cellar || bottle.wantToTry)));
     updateStars(form.elements.rating.value);
     openModal('entryModal');
   }
@@ -488,6 +495,8 @@
     var rating = document.querySelector('input[name="rating"]');
     var year = document.querySelector('input[name="yearDrank"]');
     if (ratingField) ratingField.style.opacity = isCellar ? '0.5' : '1';
+    if (rating) rating.disabled = isCellar;
+    if (year) year.disabled = isCellar;
     if (isCellar) {
       if (rating) rating.value = '';
       if (year) year.value = '';
@@ -507,7 +516,8 @@
     var id = formValue(form, 'id');
     var category = formValue(form, 'category') || state.category;
     var existing = id ? state.bottles.find(function (item) { return item.id === id; }) : null;
-    var cellar = !!(form.elements.cellar && form.elements.cellar.checked);
+    var wantToTry = !!(form.elements.wantToTry && form.elements.wantToTry.checked);
+    var cellar = !wantToTry && !!(form.elements.cellar && form.elements.cellar.checked);
     var bottle = normalizeBottle({
       id: id || uid(),
       category: category,
@@ -515,14 +525,15 @@
       subtype: category === 'wine' ? formValue(form, 'subtype') : '',
       name: formValue(form, 'name').trim(),
       cellar: cellar,
-      rating: cellar ? null : rating,
+      wantToTry: wantToTry,
+      rating: cellar || wantToTry ? null : rating,
       notes: formValue(form, 'notes').trim(),
       photo: '',
       photoId: state.draftPhoto ? (id || '') : (state.photoRemoved ? '' : (existing ? existing.photoId : '')),
       price: numberOrNull(formValue(form, 'price')),
       priceYear: numberOrNull(formValue(form, 'priceYear')),
       yearBought: numberOrNull(formValue(form, 'yearBought')),
-      yearDrank: cellar ? null : numberOrNull(formValue(form, 'yearDrank')),
+      yearDrank: cellar || wantToTry ? null : numberOrNull(formValue(form, 'yearDrank')),
       createdAt: existing ? existing.createdAt : now(),
       updatedAt: now()
     });
@@ -782,8 +793,8 @@
             Name: bottle.name,
             Type: bottle.type,
             'Wine Style': category === 'wine' ? bottle.subtype : '',
-            Status: bottle.cellar ? 'In cellar' : 'Tasted',
-            Rating: bottle.cellar ? '' : (bottle.rating === null ? '' : bottle.rating),
+            Status: bottle.wantToTry ? 'Want to try' : bottle.cellar ? 'In cellar' : 'Tasted',
+            Rating: bottle.cellar || bottle.wantToTry ? '' : (bottle.rating === null ? '' : bottle.rating),
             'Tasting Note': bottle.notes,
             Picture: (bottle.photo || bottle.photoId) ? 'Included in JSON backup' : '',
             Price: bottle.price === null ? '' : bottle.price,
@@ -899,7 +910,11 @@
     else if (target.name === 'type') {
       var form = byId('entryForm');
       if (form) updateWineStyleField(formValue(form, 'category'), target.value, '');
-    } else if (target.name === 'cellar') setCellarFormState(target.checked);
+    } else if (target.name === 'cellar' || target.name === 'wantToTry') {
+      var entryForm = byId('entryForm');
+      if (target.checked) entryForm.elements[target.name === 'cellar' ? 'wantToTry' : 'cellar'].checked = false;
+      setCellarFormState(entryForm.elements.cellar.checked || entryForm.elements.wantToTry.checked);
+    }
     else if (target.id === 'importInput') {
       if (target.files && target.files[0]) importJson(target.files[0]);
       target.value = '';

@@ -141,3 +141,11 @@ Moving phones now transfers pictures reliably, in their own file:
 - Older combined backups (v3 and earlier, with pictures embedded) still import exactly as before.
 
 After deploying, use **Update from GitHub** (gear icon → Updates).
+
+## Version 2.4.0 — Want to try
+
+Select **Want to try** when adding or editing a bottle. These bottles appear last within their type / wine-style group (for example, Champagne) in either rating order, without a rating or tasting rank. Other sort modes retain their flat list and put wanted bottles last. Use the status filter to view only wanted bottles.
+
+**Want to try** and **In cellar** are mutually exclusive. Clear the option when tasting the bottle to enter a rating and year drank. The status persists across reloads and JSON backup/import, and is included in Excel exports.
+
+After updating, use **Settings → Update from GitHub**.

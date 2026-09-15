@@ -830,3 +830,6 @@ input, select, textarea, button { font-size: 16px; }
 }
 
 .wine-subtype-field.hidden { display: none; }
+
+/* Keep status checkboxes visible with the form's appearance reset. */
+.field.check input { appearance: auto; -webkit-appearance: checkbox; }
