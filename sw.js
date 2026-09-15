@@ -1,10 +1,10 @@
 /* Cellar service worker — coherent, offline app shell. */
-const CACHE = 'cellar-v12';
+const CACHE = 'cellar-v13';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=2.3.0',
-  './app.js?v=2.3.0',
+  './style.css?v=2.4.0',
+  './app.js?v=2.4.0',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-180.png',
