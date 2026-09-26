@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.5.0" />
+  <link rel="stylesheet" href="style.css?v=2.5.1" />
   <title>Cellar</title>
 </head>
 <body>
@@ -48,12 +48,12 @@
         <option value="rating-desc">Rating ↓</option>
         <option value="rating-asc">Rating ↑</option>
         <option value="name">Name A–Z</option>
-        <option value="recent">Recently added</option>
-        <option value="yearDrank">Year drank ↓</option>
+        <option value="recent">Newest</option>
+        <option value="yearDrank">Tasted ↓</option>
       </select>
     </div>
     <div class="filter-row search-row">
-      <input id="searchInput" class="search" placeholder="Search by name or note…" />
+      <input id="searchInput" class="search" placeholder="Search bottles…" />
     </div>
   </section>
 
@@ -85,14 +85,14 @@
         </label>
 
         <label class="field wine-subtype-field hidden">
-          <span>Wine style <em>(optional)</em></span>
+          <span>Style <em>(optional)</em></span>
           <select name="subtype"></select>
         </label>
 
         <div class="field-group">
           <label class="field check">
             <input type="checkbox" name="cellar" />
-            <span>Still in cellar (not yet tasted)</span>
+            <span>In cellar · untasted</span>
           </label>
           <label class="field check">
             <input type="checkbox" name="wantToTry" />
@@ -102,7 +102,7 @@
         </div>
 
         <label class="field rating-field">
-          <span>Rating <em>(0–5, two decimals)</em></span>
+          <span>Rating <em>(0–5)</em></span>
           <div class="rating-row">
             <input name="rating" type="number" inputmode="decimal" step="0.01" min="0" max="5" placeholder="e.g. 4.75" />
             <div class="stars" data-stars></div>
@@ -110,7 +110,7 @@
         </label>
 
         <label class="field">
-          <span>Tasting note</span>
+          <span>Notes</span>
           <textarea name="notes" rows="3" maxlength="2000"></textarea>
         </label>
 
@@ -127,25 +127,25 @@
 
         <div class="field-row">
           <label class="field">
-            <span>Year bought</span>
+            <span>Bought</span>
             <input name="yearBought" type="number" inputmode="numeric" min="1900" max="2100" />
           </label>
           <label class="field">
-            <span>Year drank</span>
+            <span>Tasted</span>
             <input name="yearDrank" type="number" inputmode="numeric" min="1900" max="2100" />
           </label>
         </div>
 
         <div class="photo-field">
           <div class="photo-copy">
-            <span>Bottle picture</span>
+            <span>Photo</span>
             <p>Optional. Take a photo or pick one from your library. Resized on this phone, stored locally.</p>
           </div>
           <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
           <input id="photoLibraryInput" type="file" accept="image/*" hidden />
           <div class="photo-actions">
             <label class="btn-ghost photo-pick" for="photoInput">Take photo</label>
-            <label class="btn-ghost photo-pick" for="photoLibraryInput">Choose from library</label>
+            <label class="btn-ghost photo-pick" for="photoLibraryInput">Photo library</label>
             <button type="button" id="removePhotoBtn" class="btn-ghost danger hidden">Remove</button>
           </div>
           <figure id="photoPreview" class="photo-preview hidden" aria-label="Bottle picture preview. Tap to view full screen.">
@@ -180,8 +180,9 @@
           <input id="importInput" type="file" accept="application/json" hidden />
         </div>
         <div class="setting-group batch-add-group">
-          <h3>Batch add bottles</h3>
-          <p class="muted">Paste one bottle per checklist item. Cellar status, style, price, rating, and notes are extracted when possible. Review and mark every entry before adding any bottles.</p>
+          <h3>Batch add</h3>
+          <p class="muted">Choose Wine, Sake, or Liquor, then paste your list. Edit and review each bottle before saving.</p>
+          <label class="batch-field">Category<select id="batchCategory"><option value="wine">Wine</option><option value="sake">Sake</option><option value="liquor">Liquor</option></select></label>
           <textarea id="batchInput" class="notes-area batch-input" rows="7" placeholder="- [x] Pinot Noir from Volnay, Cote de Beaune, Cote d'Or, Burgundy, France. A delicate wine with red fruit. $120–4/5 (a little sweet)"></textarea>
           <button id="parseBatchBtn" class="btn-primary">Parse entries</button>
           <p id="batchStatus" class="muted small" aria-live="polite"></p>
@@ -252,7 +253,7 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.5.0"></script>
+  <script src="app.js?v=2.5.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>
