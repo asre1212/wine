@@ -370,7 +370,11 @@
 
   function batchReviewed() {
     return state.batch.length > 0 && state.batch.every(function (entry) {
-      return entry.reviewed && entry.name.trim() && TYPES.wine.indexOf(entry.type) >= 0;
+      var rating = numberOrNull(entry.rating);
+      var price = numberOrNull(entry.price);
+      return entry.reviewed && entry.name.trim() && TYPES.wine.indexOf(entry.type) >= 0 &&
+        (rating === null || (rating >= 0 && rating <= 5)) &&
+        (price === null || price >= 0);
     });
   }
 
@@ -390,7 +394,11 @@
         '</article>';
     }).join('');
     var status = byId('batchStatus');
-    if (status) status.textContent = state.batch.length ? state.batch.filter(function (entry) { return entry.reviewed; }).length + ' of ' + state.batch.length + ' entries reviewed.' : '';
+    if (status) {
+      var reviewedCount = state.batch.filter(function (entry) { return entry.reviewed; }).length;
+      status.textContent = state.batch.length ? reviewedCount + ' of ' + state.batch.length + ' entries reviewed.' +
+        (reviewedCount === state.batch.length && !batchReviewed() ? ' Correct any invalid price or rating to continue.' : '') : '';
+    }
     var save = byId('saveBatchBtn');
     if (save) save.disabled = !batchReviewed();
   }
@@ -419,7 +427,11 @@
     var save = byId('saveBatchBtn');
     if (save) save.disabled = !batchReviewed();
     var status = byId('batchStatus');
-    if (status && state.batch.length) status.textContent = state.batch.filter(function (item) { return item.reviewed; }).length + ' of ' + state.batch.length + ' entries reviewed.';
+    if (status && state.batch.length) {
+      var reviewedCount = state.batch.filter(function (item) { return item.reviewed; }).length;
+      status.textContent = reviewedCount + ' of ' + state.batch.length + ' entries reviewed.' +
+        (reviewedCount === state.batch.length && !batchReviewed() ? ' Correct any invalid price or rating to continue.' : '');
+    }
     return true;
   }
 
