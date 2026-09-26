@@ -833,3 +833,38 @@ input, select, textarea, button { font-size: 16px; }
 
 /* Keep status checkboxes visible with the form's appearance reset. */
 .field.check input { appearance: auto; -webkit-appearance: checkbox; }
+
+/* Batch entry review */
+.batch-add-group .batch-input { min-height: 150px; }
+.batch-review-list { display: grid; gap: 14px; }
+.batch-review-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper-soft);
+  display: grid;
+  gap: 12px;
+}
+.batch-review-card.is-reviewed { border-color: var(--gold); background: var(--gold-soft); }
+.batch-card-heading, .batch-field-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.batch-card-heading strong { font-family: var(--serif); font-size: 17px; font-weight: 400; }
+.batch-review-toggle { white-space: nowrap; }
+.batch-field { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+.batch-field input:not([type="checkbox"]), .batch-field select, .batch-field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px var(--sans);
+}
+.batch-field textarea { resize: vertical; line-height: 1.5; }
+.batch-field-row > .batch-field { flex: 1; }
+.batch-cellar { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+#saveBatchBtn:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 420px) {
+  .batch-review-card { padding: 13px; }
+  .batch-card-heading, .batch-field-row { align-items: stretch; }
+}
