@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.4.0';
+  var APP_VERSION = '2.5.0';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -36,7 +36,8 @@
     search: '',
     bottles: [],
     draftPhoto: '',
-    photoRemoved: false
+    photoRemoved: false,
+    batch: []
   };
   var notesTimer = null;
 
@@ -298,6 +299,159 @@
       return '<option value="' + escapeHtml(type) + '">' + escapeHtml(type) + '</option>';
     }).join('');
     select.value = current || TYPES[category][0];
+  }
+
+  function parseBatchText(text) {
+    var source = String(text || '').trim();
+    if (!source) return [];
+    var entries = [];
+    var marker = /(?:^|\n)\s*[-*]\s*\[([ xX])\]\s*/g;
+    var matches = [];
+    var match;
+    while ((match = marker.exec(source))) matches.push({ start: match.index, end: marker.lastIndex, checked: match[1].toLowerCase() === 'x' });
+    if (matches.length) {
+      matches.forEach(function (item, index) {
+        var end = index + 1 < matches.length ? matches[index + 1].start : source.length;
+        entries.push({ raw: source.slice(item.end, end).trim(), cellar: item.checked });
+      });
+    } else {
+      source.split(/\n\s*\n/).forEach(function (block) {
+        if (block.trim()) entries.push({ raw: block.trim(), cellar: false });
+      });
+    }
+    return entries.map(function (entry) {
+      var raw = entry.raw.replace(/^[“"]|[”"]$/g, '').trim();
+      var price = null;
+      var rating = null;
+      var priceRating = /\$\s*([\d,]+(?:\.\d+)?)\s*[–—-]\s*(\d(?:\.\d+)?)\s*\/\s*5/;
+      var priceMatch = raw.match(priceRating);
+      if (priceMatch) {
+        price = Number(priceMatch[1].replace(/,/g, ''));
+        rating = Number(priceMatch[2]);
+        raw = raw.replace(priceMatch[0], ' ');
+      }
+      var trailingNotes = '';
+      var trailingNoteMatch = raw.match(/\(([^()]*)\)\s*$/);
+      if (trailingNoteMatch) {
+        trailingNotes = trailingNoteMatch[1].trim();
+        raw = raw.slice(0, trailingNoteMatch.index).trim();
+      }
+      raw = raw.replace(/\s+/g, ' ').trim();
+      var period = raw.indexOf('.');
+      var name = (period >= 0 ? raw.slice(0, period + 1) : raw).trim();
+      var notes = (period >= 0 ? raw.slice(period + 1).trim() : '');
+      if (trailingNotes) notes = [notes, trailingNotes].filter(Boolean).join(' · ');
+      var style = '';
+      var wineType = 'Red';
+      Object.keys(WINE_STYLES).some(function (type) {
+        return WINE_STYLES[type].some(function (candidate) {
+          if (candidate !== 'Other' && name.toLowerCase().indexOf(candidate.toLowerCase()) === 0) {
+            style = candidate;
+            wineType = type;
+            return true;
+          }
+          return false;
+        });
+      });
+      return {
+        category: 'wine',
+        type: wineType,
+        subtype: style,
+        name: name,
+        notes: notes,
+        price: price,
+        rating: rating,
+        cellar: entry.cellar && rating === null,
+        wantToTry: false,
+        reviewed: false
+      };
+    }).filter(function (entry) { return entry.name; });
+  }
+
+  function batchReviewed() {
+    return state.batch.length > 0 && state.batch.every(function (entry) {
+      return entry.reviewed && entry.name.trim() && TYPES.wine.indexOf(entry.type) >= 0;
+    });
+  }
+
+  function renderBatchReview() {
+    var list = byId('batchReviewList');
+    if (!list) return;
+    list.innerHTML = state.batch.map(function (entry, index) {
+      return '<article class="batch-review-card' + (entry.reviewed ? ' is-reviewed' : '') + '">' +
+        '<div class="batch-card-heading"><strong>Bottle ' + (index + 1) + '</strong><button type="button" class="btn-ghost batch-review-toggle" data-batch-review="' + index + '">' + (entry.reviewed ? 'Reviewed ✓' : 'Mark reviewed') + '</button></div>' +
+        '<label class="batch-field">Name<input data-batch-index="' + index + '" data-batch-field="name" value="' + escapeHtml(entry.name) + '"></label>' +
+        '<div class="batch-field-row"><label class="batch-field">Type<select data-batch-index="' + index + '" data-batch-field="type">' + TYPES.wine.map(function (type) { return '<option' + (type === entry.type ? ' selected' : '') + '>' + escapeHtml(type) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="batch-field">Style<input data-batch-index="' + index + '" data-batch-field="subtype" value="' + escapeHtml(entry.subtype) + '" placeholder="e.g. Pinot Noir"></label></div>' +
+        '<div class="batch-field-row"><label class="batch-field">Price<input data-batch-index="' + index + '" data-batch-field="price" type="number" min="0" step="0.01" value="' + (entry.price === null ? '' : escapeHtml(entry.price)) + '" placeholder="—"></label>' +
+        '<label class="batch-field">Rating<input data-batch-index="' + index + '" data-batch-field="rating" type="number" min="0" max="5" step="0.01" value="' + (entry.rating === null ? '' : escapeHtml(entry.rating)) + '" placeholder="—"></label></div>' +
+        '<label class="batch-field batch-cellar"><input type="checkbox" data-batch-index="' + index + '" data-batch-field="cellar"' + (entry.cellar ? ' checked' : '') + '> In cellar (untasted)</label>' +
+        '<label class="batch-field">Notes<textarea data-batch-index="' + index + '" data-batch-field="notes" rows="3">' + escapeHtml(entry.notes) + '</textarea></label>' +
+        '</article>';
+    }).join('');
+    var status = byId('batchStatus');
+    if (status) status.textContent = state.batch.length ? state.batch.filter(function (entry) { return entry.reviewed; }).length + ' of ' + state.batch.length + ' entries reviewed.' : '';
+    var save = byId('saveBatchBtn');
+    if (save) save.disabled = !batchReviewed();
+  }
+
+  function updateBatchField(target) {
+    if (!target || !target.hasAttribute('data-batch-index')) return false;
+    var index = Number(target.getAttribute('data-batch-index'));
+    var field = target.getAttribute('data-batch-field');
+    var entry = state.batch[index];
+    if (!entry || !field) return false;
+    entry[field] = field === 'cellar' ? target.checked : target.value;
+    if (field === 'cellar' && target.checked) {
+      entry.rating = null;
+      var ratingInput = document.querySelector('[data-batch-index="' + index + '"][data-batch-field="rating"]');
+      if (ratingInput) ratingInput.value = '';
+    }
+    if (entry.reviewed) {
+      entry.reviewed = false;
+      var card = target.closest('.batch-review-card');
+      if (card) {
+        card.classList.remove('is-reviewed');
+        var reviewButton = card.querySelector('.batch-review-toggle');
+        if (reviewButton) reviewButton.textContent = 'Mark reviewed';
+      }
+    }
+    var save = byId('saveBatchBtn');
+    if (save) save.disabled = !batchReviewed();
+    var status = byId('batchStatus');
+    if (status && state.batch.length) status.textContent = state.batch.filter(function (item) { return item.reviewed; }).length + ' of ' + state.batch.length + ' entries reviewed.';
+    return true;
+  }
+
+  function saveBatch() {
+    if (!batchReviewed()) { toast('Review every entry before adding bottles'); return; }
+    var additions = state.batch.map(function (entry) {
+      return normalizeBottle({
+        category: 'wine',
+        type: entry.type,
+        subtype: entry.subtype,
+        name: entry.name.trim(),
+        notes: entry.notes.trim(),
+        price: numberOrNull(entry.price),
+        rating: entry.cellar ? null : numberOrNull(entry.rating),
+        cellar: entry.cellar,
+        wantToTry: false,
+        createdAt: now(),
+        updatedAt: now()
+      });
+    });
+    var next = state.bottles.concat(additions);
+    if (!persistBottles(next)) return;
+    state.bottles = next;
+    state.category = 'wine';
+    document.querySelectorAll('.tab').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.cat === 'wine'); });
+    state.batch = [];
+    var input = byId('batchInput');
+    if (input) input.value = '';
+    renderBatchReview();
+    renderList();
+    updateCount();
+    toast(additions.length + ' bottles added');
   }
 
   function updateWineStyleField(category, type, current) {
@@ -900,10 +1054,21 @@
     else if (button.id === 'exportPhotosBtn') exportPhotos();
     else if (button.id === 'exportXlsxBtn') exportExcel();
     else if (button.id === 'updateBtn') forceUpdate();
+    else if (button.id === 'parseBatchBtn') {
+      state.batch = parseBatchText(byId('batchInput').value);
+      renderBatchReview();
+      toast(state.batch.length ? state.batch.length + ' entries ready to review' : 'No entries found');
+    } else if (button.id === 'saveBatchBtn') saveBatch();
+    else if (button.hasAttribute('data-batch-review')) {
+      var batchIndex = Number(button.getAttribute('data-batch-review'));
+      if (state.batch[batchIndex]) state.batch[batchIndex].reviewed = !state.batch[batchIndex].reviewed;
+      renderBatchReview();
+    }
   }
 
   function handleChange(event) {
     var target = event.target;
+    if (updateBatchField(target)) return;
     if (target.id === 'typeFilter') { state.typeFilter = target.value; renderList(); }
     else if (target.id === 'statusFilter') { state.statusFilter = target.value; renderList(); }
     else if (target.id === 'sortBy') { state.sortBy = target.value; renderList(); }
@@ -937,6 +1102,7 @@
 
   function handleInput(event) {
     var target = event.target;
+    if (updateBatchField(target)) return;
     if (target.id === 'searchInput') { state.search = target.value; renderList(); }
     else if (target.name === 'rating') updateStars(target.value);
     else if (target.id === 'notesArea') {
