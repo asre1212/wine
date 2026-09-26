@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.5.0';
+  var APP_VERSION = '2.5.1';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -225,21 +225,20 @@
 
   function cardHtml(bottle, rank) {
     var meta = [];
-    if (bottle.type) meta.push('<span class="badge">' + escapeHtml(bottle.type) + '</span>');
-    if (bottle.category === 'wine' && bottle.subtype) meta.push('<span class="badge wine-style-badge">' + escapeHtml(bottle.subtype) + '</span>');
-    if (bottle.cellar) meta.push('<span class="badge cellar-badge">untasted</span>');
-    if (bottle.yearDrank && !bottle.cellar && !bottle.wantToTry) meta.push('<span>Drank ' + escapeHtml(bottle.yearDrank) + '</span>');
+    var grouped = state.sortBy === 'rating-desc' || state.sortBy === 'rating-asc';
+    if (!grouped || bottle.cellar) meta.push('<span class="badge">' + escapeHtml(bottle.subtype || bottle.type) + '</span>');
+    if (bottle.yearDrank && !bottle.cellar && !bottle.wantToTry) meta.push('<span>Tasted ' + escapeHtml(bottle.yearDrank) + '</span>');
     if (bottle.yearBought) meta.push('<span>Bought ' + escapeHtml(bottle.yearBought) + '</span>');
     if (bottle.price !== null) meta.push('<span>$' + escapeHtml(bottle.price) + (bottle.priceYear ? ' · ' + escapeHtml(bottle.priceYear) : '') + '</span>');
     var metaHtml = meta.map(function (part, index) {
       return (index ? '<span class="sep"></span>' : '') + part;
     }).join('');
     var ratingHtml = bottle.wantToTry
-      ? '<div class="rating-num unrated">Want to<br>try</div>'
+      ? '<div class="rating-num unrated">To try</div>'
       : bottle.cellar || bottle.rating === null
-      ? '<div class="rating-num unrated">In&nbsp;cellar</div>'
-      : '<div class="rating-num">' + escapeHtml(displayRating(bottle.rating)) + '</div><div class="rating-out">out of 5</div>';
-    var rankLabel = rank ? '№ ' + String(rank).padStart(2, '0') : (bottle.cellar ? '—' : '');
+      ? '<div class="rating-num unrated">' + (bottle.cellar ? 'Cellar' : '—') + '</div>'
+      : '<div class="rating-num">' + escapeHtml(displayRating(bottle.rating)) + '</div><div class="rating-out">/5</div>';
+    var rankLabel = rank ? '#' + String(rank) : (bottle.cellar ? '—' : '');
     var hasThumb = !!(bottle.photoId || bottle.photo);
     var thumbHtml = '';
     if (hasThumb) {
@@ -281,7 +280,7 @@
       groups[key].push(bottle);
     });
     list.innerHTML = orderedGroupNames(groups).map(function (name) {
-      var label = name === '__cellar__' ? 'In Cellar (untasted)' : name;
+      var label = name === '__cellar__' ? 'In cellar' : name.replace(/^[^·]+ · /, '');
       return '<div class="group-header">' + escapeHtml(label) + '</div>' +
         groups[name].map(function (bottle) { return cardHtml(bottle, ranks[bottle.id]); }).join('');
     }).join('');
@@ -301,7 +300,8 @@
     select.value = current || TYPES[category][0];
   }
 
-  function parseBatchText(text) {
+  function parseBatchText(text, category) {
+    category = TYPES[category] ? category : state.category;
     var source = String(text || '').trim();
     if (!source) return [];
     var entries = [];
@@ -342,8 +342,8 @@
       var notes = (period >= 0 ? raw.slice(period + 1).trim() : '');
       if (trailingNotes) notes = [notes, trailingNotes].filter(Boolean).join(' · ');
       var style = '';
-      var wineType = 'Red';
-      Object.keys(WINE_STYLES).some(function (type) {
+      var wineType = 'Other';
+      if (category === 'wine') Object.keys(WINE_STYLES).some(function (type) {
         return WINE_STYLES[type].some(function (candidate) {
           if (candidate !== 'Other' && name.toLowerCase().indexOf(candidate.toLowerCase()) === 0) {
             style = candidate;
@@ -353,8 +353,16 @@
           return false;
         });
       });
+      if (category !== 'wine') {
+        var normalizedName = name.toLowerCase().replace(/whisky/g, 'whiskey');
+        var detected = TYPES[category].slice().sort(function (a, b) { return b.length - a.length; }).find(function (type) {
+          var words = type.toLowerCase().replace(/whisky/g, 'whiskey');
+          return type !== 'Other' && new RegExp('(^|[^a-z])' + words + '([^a-z]|$)').test(normalizedName);
+        });
+        wineType = detected || 'Other';
+      }
       return {
-        category: 'wine',
+        category: category,
         type: wineType,
         subtype: style,
         name: name,
@@ -372,7 +380,7 @@
     return state.batch.length > 0 && state.batch.every(function (entry) {
       var rating = numberOrNull(entry.rating);
       var price = numberOrNull(entry.price);
-      return entry.reviewed && entry.name.trim() && TYPES.wine.indexOf(entry.type) >= 0 &&
+      return entry.reviewed && entry.name.trim() && TYPES[entry.category] && TYPES[entry.category].indexOf(entry.type) >= 0 &&
         (rating === null || (rating >= 0 && rating <= 5)) &&
         (price === null || price >= 0);
     });
@@ -385,8 +393,9 @@
       return '<article class="batch-review-card' + (entry.reviewed ? ' is-reviewed' : '') + '">' +
         '<div class="batch-card-heading"><strong>Bottle ' + (index + 1) + '</strong><button type="button" class="btn-ghost batch-review-toggle" data-batch-review="' + index + '">' + (entry.reviewed ? 'Reviewed ✓' : 'Mark reviewed') + '</button></div>' +
         '<label class="batch-field">Name<input data-batch-index="' + index + '" data-batch-field="name" value="' + escapeHtml(entry.name) + '"></label>' +
-        '<div class="batch-field-row"><label class="batch-field">Type<select data-batch-index="' + index + '" data-batch-field="type">' + TYPES.wine.map(function (type) { return '<option' + (type === entry.type ? ' selected' : '') + '>' + escapeHtml(type) + '</option>'; }).join('') + '</select></label>' +
-        '<label class="batch-field">Style<input data-batch-index="' + index + '" data-batch-field="subtype" value="' + escapeHtml(entry.subtype) + '" placeholder="e.g. Pinot Noir"></label></div>' +
+        '<label class="batch-field">Category<select data-batch-index="' + index + '" data-batch-field="category">' + Object.keys(CATEGORY_LABELS).map(function (category) { return '<option value="' + category + '"' + (category === entry.category ? ' selected' : '') + '>' + CATEGORY_LABELS[category] + '</option>'; }).join('') + '</select></label>' +
+        '<div class="batch-field-row"><label class="batch-field">Type<select data-batch-index="' + index + '" data-batch-field="type">' + TYPES[entry.category].map(function (type) { return '<option' + (type === entry.type ? ' selected' : '') + '>' + escapeHtml(type) + '</option>'; }).join('') + '</select></label>' +
+        (entry.category === 'wine' ? '<label class="batch-field">Style<input data-batch-index="' + index + '" data-batch-field="subtype" value="' + escapeHtml(entry.subtype) + '" placeholder="e.g. Pinot Noir"></label>' : '') + '</div>' +
         '<div class="batch-field-row"><label class="batch-field">Price<input data-batch-index="' + index + '" data-batch-field="price" type="number" min="0" step="0.01" value="' + (entry.price === null ? '' : escapeHtml(entry.price)) + '" placeholder="—"></label>' +
         '<label class="batch-field">Rating<input data-batch-index="' + index + '" data-batch-field="rating" type="number" min="0" max="5" step="0.01" value="' + (entry.rating === null ? '' : escapeHtml(entry.rating)) + '" placeholder="—"></label></div>' +
         '<label class="batch-field batch-cellar"><input type="checkbox" data-batch-index="' + index + '" data-batch-field="cellar"' + (entry.cellar ? ' checked' : '') + '> In cellar (untasted)</label>' +
@@ -410,6 +419,13 @@
     var entry = state.batch[index];
     if (!entry || !field) return false;
     entry[field] = field === 'cellar' ? target.checked : target.value;
+    if (field === 'category') {
+      entry.type = 'Other';
+      entry.subtype = '';
+      entry.reviewed = false;
+      renderBatchReview();
+      return true;
+    }
     if (field === 'cellar' && target.checked) {
       entry.rating = null;
       var ratingInput = document.querySelector('[data-batch-index="' + index + '"][data-batch-field="rating"]');
@@ -439,9 +455,9 @@
     if (!batchReviewed()) { toast('Review every entry before adding bottles'); return; }
     var additions = state.batch.map(function (entry) {
       return normalizeBottle({
-        category: 'wine',
+        category: entry.category,
         type: entry.type,
-        subtype: entry.subtype,
+        subtype: entry.category === 'wine' ? entry.subtype : '',
         name: entry.name.trim(),
         notes: entry.notes.trim(),
         price: numberOrNull(entry.price),
@@ -455,8 +471,12 @@
     var next = state.bottles.concat(additions);
     if (!persistBottles(next)) return;
     state.bottles = next;
-    state.category = 'wine';
-    document.querySelectorAll('.tab').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.cat === 'wine'); });
+    state.category = additions[0].category;
+    state.typeFilter = '';
+    state.statusFilter = 'all';
+    var statusFilter = byId('statusFilter');
+    if (statusFilter) statusFilter.value = 'all';
+    document.querySelectorAll('.tab').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.cat === state.category); });
     state.batch = [];
     var input = byId('batchInput');
     if (input) input.value = '';
@@ -1058,7 +1078,11 @@
     var button = event.target.closest('button');
     if (!button) return;
     if (button.id === 'addBtn') openEntry(null);
-    else if (button.id === 'settingsBtn') { updateCount(); openModal('settingsModal'); }
+    else if (button.id === 'settingsBtn') {
+      updateCount();
+      if (!state.batch.length) byId('batchCategory').value = state.category;
+      openModal('settingsModal');
+    }
     else if (button.id === 'notesBtn') openNotes();
     else if (button.id === 'deleteBtn') deleteEntry();
     else if (button.id === 'removePhotoBtn') { state.photoRemoved = true; setPhotoPreview(''); toast('Picture removed'); }
@@ -1067,7 +1091,7 @@
     else if (button.id === 'exportXlsxBtn') exportExcel();
     else if (button.id === 'updateBtn') forceUpdate();
     else if (button.id === 'parseBatchBtn') {
-      state.batch = parseBatchText(byId('batchInput').value);
+      state.batch = parseBatchText(byId('batchInput').value, byId('batchCategory').value);
       renderBatchReview();
       toast(state.batch.length ? state.batch.length + ' entries ready to review' : 'No entries found');
     } else if (button.id === 'saveBatchBtn') saveBatch();
