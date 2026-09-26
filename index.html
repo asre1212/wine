@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.4.0" />
+  <link rel="stylesheet" href="style.css?v=2.5.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -179,6 +179,15 @@
           <label class="btn-ghost" for="importInput">Import JSON / Pictures</label>
           <input id="importInput" type="file" accept="application/json" hidden />
         </div>
+        <div class="setting-group batch-add-group">
+          <h3>Batch add bottles</h3>
+          <p class="muted">Paste one bottle per checklist item. Cellar status, style, price, rating, and notes are extracted when possible. Review and mark every entry before adding any bottles.</p>
+          <textarea id="batchInput" class="notes-area batch-input" rows="7" placeholder="- [x] Pinot Noir from Volnay, Cote de Beaune, Cote d'Or, Burgundy, France. A delicate wine with red fruit. $120–4/5 (a little sweet)"></textarea>
+          <button id="parseBatchBtn" class="btn-primary">Parse entries</button>
+          <p id="batchStatus" class="muted small" aria-live="polite"></p>
+          <div id="batchReviewList" class="batch-review-list"></div>
+          <button id="saveBatchBtn" class="btn-primary" disabled>Add reviewed bottles</button>
+        </div>
         <div class="setting-group">
           <h3>Spreadsheet</h3>
           <p class="muted">Export the entire collection as an Excel workbook (one sheet per category).</p>
@@ -243,7 +252,7 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.4.0"></script>
+  <script src="app.js?v=2.5.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>
