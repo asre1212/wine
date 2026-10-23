@@ -1,10 +1,16 @@
 /* Cellar service worker — coherent, offline app shell. */
-const CACHE = 'cellar-v15';
+const CACHE = 'cellar-v16';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=2.5.1',
-  './app.js?v=2.5.1',
+  './style.css?v=2.6.0',
+  './app.js?v=2.6.0',
+  './voice-parser.js?v=2.6.0',
+  './voice-memory.js?v=2.6.0',
+  './voice.js?v=2.6.0',
+  './voice-worker.js?v=2.6.0',
+  './tasting.js?v=2.6.0',
+  './vendor/transformers.min.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-180.png',
@@ -28,7 +34,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key.startsWith('cellar-v') && key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -40,13 +46,16 @@ self.addEventListener('message', event => {
 function isCoreRequest(request) {
   if (request.mode === 'navigate') return true;
   const path = new URL(request.url).pathname;
-  return ['/index.html', '/app.js', '/style.css', '/manifest.webmanifest']
+  return ['/index.html', '/app.js', '/style.css', '/manifest.webmanifest', '/voice-parser.js', '/voice-memory.js', '/voice.js', '/voice-worker.js', '/tasting.js']
     .some(name => path.endsWith(name));
 }
 
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  // Online suggestions are ephemeral until approved; never cache query responses.
+  if (['https://datasets-server.huggingface.co','https://r.jina.ai'].includes(url.origin)) return;
 
   if (isCoreRequest(request)) {
     // Network-first prevents a mixed old-HTML/new-JS shell after a GitHub deploy.
@@ -59,7 +68,7 @@ self.addEventListener('fetch', event => {
           }
           return response;
         })
-        .catch(() => caches.match(request).then(cached => cached || caches.match('./index.html')))
+        .catch(() => caches.match(request).then(cached => cached || (request.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
     );
     return;
   }
@@ -74,3 +83,4 @@ self.addEventListener('fetch', event => {
     }))
   );
 });
+

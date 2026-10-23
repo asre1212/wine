@@ -2,6 +2,11 @@
 
 A local-first iPhone-friendly Progressive Web App for tracking your wine, sake, and liquor collection. All data lives on the device. No accounts, no servers.
 
+Version 2.6 adds local Whisper voice entry, 143 common wine phrases, teachable name
+corrections, and optional online tasting-note suggestions with two-line review and
+explicit approval. Online lookup sends only the bottle name/source URL when requested.
+See [VOICE.md](VOICE.md) for examples, privacy, catalog coverage and testing.
+
 ## Features
 
 ### Wine styles
@@ -149,3 +154,4 @@ Select **Want to try** when adding or editing a bottle. These bottles appear las
 **Want to try** and **In cellar** are mutually exclusive. Clear the option when tasting the bottle to enter a rating and year drank. The status persists across reloads and JSON backup/import, and is included in Excel exports.
 
 After updating, use **Settings → Update from GitHub**.
+

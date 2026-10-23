@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.5.1" />
+  <link rel="stylesheet" href="style.css?v=2.6.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -68,8 +68,34 @@
       <div class="sheet-handle"></div>
       <div class="sheet-header">
         <h2 id="entryTitle">New Bottle</h2>
+        <button type="button" id="voice-record" class="icon-btn voice-mic" aria-label="Start voice recording" title="Start voice recording" aria-pressed="false" aria-expanded="false" aria-controls="voice-panel"><svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         <button class="icon-btn" data-close aria-label="Close">✕</button>
       </div>
+      <section id="voice-panel" class="voice-panel" hidden aria-label="Voice entry">
+        <div class="voice-actions"><strong>Voice entry</strong><button type="button" id="voice-cancel" class="btn-ghost">Close</button></div>
+        <p class="muted small">One bottle at a time. Audio stays on this device. First use downloads speech files.</p>
+        <p class="muted small">Try: “William Fèvre Chablis 2022, rating four point seven five, price sixty dollars. Notes crisp and mineral.”</p>
+        <label class="field"><span>Transcript · editable</span><textarea id="voice-text" rows="3" maxlength="3000" placeholder="Speak or type a bottle…"></textarea></label>
+        <div class="voice-actions"><button type="button" id="voice-parse" class="btn-primary">Fill bottle fields</button><button type="button" id="voice-load" class="btn-ghost">Prepare offline voice</button></div>
+        <p id="voice-status" class="muted small" role="status" aria-live="polite"></p>
+        <button type="button" id="voice-teach-current" class="btn-ghost" hidden>Teach this name correction</button>
+        <details id="voice-memory"><summary>Teach names &amp; phrases</summary>
+          <p class="muted small">Save a misheard phrase and the correct name. Optional type/style helps sort future entries. This remembers text corrections; it does not retrain speech recognition.</p>
+          <form id="voice-memory-form">
+            <label class="field"><span>Heard phrase / nickname</span><input id="voice-memory-phrase" required maxlength="120" placeholder="William fever" /></label>
+            <label class="field"><span>Correct name</span><input id="voice-memory-name" required maxlength="120" placeholder="William Fèvre" list="voice-names" /></label>
+            <div class="field-row"><label class="field"><span>Wine type (optional)</span><select id="voice-memory-type"></select></label><label class="field"><span>Style (optional)</span><select id="voice-memory-style"></select></label></div>
+            <div class="voice-actions"><button id="voice-memory-save" class="btn-primary" type="submit">Remember phrase</button><button type="button" id="voice-memory-cancel" class="btn-ghost" hidden>Cancel edit</button></div>
+          </form>
+          <p id="voice-memory-status" class="muted small" role="status"></p>
+          <p id="voice-memory-count" class="muted small"></p>
+          <div id="voice-memory-list" class="voice-scroll"></div>
+          <button type="button" id="voice-memory-clear" class="btn-ghost danger" hidden>Clear saved corrections</button>
+          <details id="voice-dictionary"><summary>Common wine names &amp; regions</summary><input id="voice-dictionary-search" class="search" placeholder="Search Napa, France, Chablis…" aria-label="Search common wine phrases"/><div id="voice-dictionary-list" class="voice-scroll"></div></details>
+          <datalist id="voice-names"></datalist>
+        </details>
+      </section>
+      <div class="voice-open-row"><button type="button" id="voice-open" class="btn-ghost">Voice text &amp; teaching</button></div>
       <form id="entryForm" class="form" action="javascript:void(0)" novalidate>
         <input type="hidden" name="id" />
         <input type="hidden" name="category" />
@@ -109,10 +135,32 @@
           </div>
         </label>
 
+        <section class="tasting-panel" aria-label="Online tasting notes">
+          <div class="voice-actions"><strong>Online tasting notes</strong><button type="button" id="tasting-find" class="btn-ghost">Find tasting notes</button></div>
+          <p class="muted small">Matches your bottle name and vintage to an online review catalog. Lookup sends only the name. Review and approve before notes are added.</p>
+          <p id="tasting-status" class="muted small" role="status" aria-live="polite"></p>
+          <div id="tasting-results"></div>
+          <details id="tasting-tools"><summary>Use a winery / review source</summary>
+            <p class="muted small">For bottles absent from the catalog, enter a specific bottle page. The link is read through Jina Reader. If the page cannot be read, paste its tasting notes.</p>
+            <label class="field"><span>Source link</span><input type="url" id="tasting-url" placeholder="https://…" /></label>
+            <button type="button" id="tasting-fetch" class="btn-ghost">Read source link</button>
+            <label class="field"><span>Or paste source tasting notes</span><textarea id="tasting-paste" rows="3" maxlength="5000"></textarea></label>
+            <button type="button" id="tasting-condense" class="btn-ghost">Condense to two lines</button>
+          </details>
+          <div id="tasting-review" hidden>
+            <strong id="tasting-title"></strong><p id="tasting-match" class="muted small"></p>
+            <a id="tasting-source" target="_blank" rel="noopener noreferrer">Source</a>
+            <label class="field"><span>Two-line suggestion · editable</span><textarea id="tasting-summary" rows="3" maxlength="361"></textarea></label>
+            <label class="tasting-check"><input type="checkbox" id="tasting-confirm" /> This is the correct bottle, cuvée and vintage.</label>
+            <div class="voice-actions"><button type="button" id="tasting-approve" class="btn-primary" disabled>Approve into Notes</button><button type="button" id="tasting-reject" class="btn-ghost">Discard</button></div>
+          </div>
+          <p class="muted small tasting-credit">Catalog: Wine Reviews / Zackthoutt via <a href="https://huggingface.co/datasets/spawn99/wine-reviews" target="_blank" rel="noopener noreferrer">Hugging Face</a> (<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a>). Historical coverage; not every wine or vintage is available.</p>
+        </section>
         <label class="field">
           <span>Notes</span>
           <textarea name="notes" rows="3" maxlength="2000"></textarea>
         </label>
+        <div id="tasting-saved-sources" class="muted small"></div>
 
         <div class="field-row">
           <label class="field">
@@ -173,7 +221,7 @@
       <div class="settings-body">
         <div class="setting-group">
           <h3>Backup</h3>
-          <p class="muted">Move between phones with two small files: a JSON backup of bottles and notes, and a separate pictures package. Import accepts either file — bring both across and your photos sync too.</p>
+          <p class="muted">Move between phones with two small files: a JSON backup of bottles, notes and taught voice phrases, and a separate pictures package. Import accepts either file — bring both across and your photos sync too.</p>
           <button id="exportJsonBtn" class="btn-primary">Export JSON</button>
           <button id="exportPhotosBtn" class="btn-primary">Export Pictures</button>
           <label class="btn-ghost" for="importInput">Import JSON / Pictures</label>
@@ -253,7 +301,12 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.5.1"></script>
+  <script src="app.js?v=2.6.0"></script>
+  <script src="voice-parser.js?v=2.6.0"></script>
+  <script src="voice-memory.js?v=2.6.0"></script>
+  <script src="voice.js?v=2.6.0"></script>
+  <script src="tasting.js?v=2.6.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>
+

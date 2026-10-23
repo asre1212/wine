@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.5.1';
+  var APP_VERSION = '2.6.0';
   var STORAGE_KEY = 'cellar.bottles.v1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
@@ -73,6 +73,7 @@
       wantToTry: !!source.wantToTry,
       rating: numberOrNull(source.rating),
       notes: source.notes || '',
+      tastingSources: Array.isArray(source.tastingSources) ? source.tastingSources.filter(function (item) { return item && typeof item.title === 'string' && typeof item.summary === 'string' && typeof item.url === 'string' && /^https:\/\//.test(item.url); }).slice(0,20) : [],
       photo: typeof source.photo === 'string' ? source.photo : '',
       photoId: source.photoId || (source.photo ? source.id : ''),
       price: numberOrNull(source.price),
@@ -126,6 +127,7 @@
 
   function closeModal(modal) {
     if (!modal) return;
+    if (modal.id === 'entryModal') window.dispatchEvent(new CustomEvent('cellar-entry-close'));
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
     // The photo viewer stacks on top of the entry sheet — only restore
@@ -639,6 +641,7 @@
   function openEntry(id) {
     var form = byId('entryForm');
     if (!form) return;
+    window.dispatchEvent(new CustomEvent('cellar-entry-reset'));
     form.reset();
     state.draftPhoto = '';
     state.photoRemoved = false;
@@ -673,6 +676,7 @@
     if (deleteButton) deleteButton.classList.toggle('hidden', !bottle);
     setCellarFormState(!!(bottle && (bottle.cellar || bottle.wantToTry)));
     updateStars(form.elements.rating.value);
+    showTastingSources(bottle ? bottle.tastingSources : []);
     openModal('entryModal');
   }
 
@@ -714,6 +718,7 @@
       wantToTry: wantToTry,
       rating: cellar || wantToTry ? null : rating,
       notes: formValue(form, 'notes').trim(),
+      tastingSources: (existing ? existing.tastingSources : []).concat(window.CellarTasting && CellarTasting.approvedSources ? CellarTasting.approvedSources() : []).filter(function (item, index, all) { return formValue(form, 'notes').indexOf(item.summary) >= 0 && all.findIndex(function (other) { return other.url === item.url && other.summary === item.summary; }) === index; }),
       photo: '',
       photoId: state.draftPhoto ? (id || '') : (state.photoRemoved ? '' : (existing ? existing.photoId : '')),
       price: numberOrNull(formValue(form, 'price')),
@@ -861,7 +866,10 @@
       if (copy.photo) { copy.photoId = copy.photoId || copy.id; copy.photo = ''; }
       return copy;
     });
-    var payload = { app: 'cellar', version: 4, exportedAt: new Date().toISOString(), photos: 'separate', bottles: bottles, notes: loadNotes() };
+    var corrections;
+    try { corrections = window.CellarVoiceMemory ? CellarVoiceMemory.exportData() : undefined; }
+    catch (error) { toast(error.message); return; }
+    var payload = { app: 'cellar', version: 5, voiceCorrections: corrections, exportedAt: new Date().toISOString(), photos: 'separate', bottles: bottles, notes: loadNotes() };
     download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'cellar-backup-' + dateStamp() + '.json');
     var hasPhotos = state.bottles.some(function (bottle) { return bottle.photoId || bottle.photo; });
     toast(hasPhotos ? 'Backup exported. Use Export Pictures for photos.' : 'Backup exported', 3200);
@@ -921,6 +929,7 @@
         }
         var incoming = Array.isArray(parsed) ? parsed : parsed.bottles;
         if (!Array.isArray(incoming)) throw new Error('Invalid backup');
+        var voicePlan = parsed.voiceCorrections && window.CellarVoiceMemory ? CellarVoiceMemory.mergePlan(parsed.voiceCorrections) : null;
         if (!confirm('Import ' + incoming.length + ' bottles? Existing entries with the same ID will be replaced.')) return;
         var byIdMap = {};
         state.bottles.forEach(function (bottle) { byIdMap[bottle.id] = bottle; });
@@ -938,9 +947,11 @@
           if (!persistBottles(next)) return;
           state.bottles = next;
           if (parsed && typeof parsed.notes === 'string') saveNotes(parsed.notes);
+          var voiceError = '';
+          if (voicePlan) { try { CellarVoiceMemory.write(voicePlan); } catch (error) { voiceError = error.message; } }
           renderList();
           updateCount();
-          toast('Imported ' + incoming.length + ' bottles');
+          toast('Imported ' + incoming.length + ' bottles' + (voiceError ? '. Corrections not restored: ' + voiceError : ''));
         }).catch(function () { toast('Import worked, but some pictures could not be saved'); });
       } catch (error) {
         console.error(error);
@@ -1037,7 +1048,7 @@
       }));
     }
     if (window.caches && caches.keys) {
-      work.push(caches.keys().then(function (keys) { return Promise.all(keys.map(function (key) { return caches.delete(key); })); }));
+      work.push(caches.keys().then(function (keys) { return Promise.all(keys.filter(function (key) { return key.indexOf('cellar-v') === 0; }).map(function (key) { return caches.delete(key); })); }));
     }
     Promise.all(work).then(function () {
       localStorage.setItem(LAST_UPDATED_KEY, String(now()));
@@ -1156,6 +1167,41 @@
     });
   }
 
+  function showTastingSources(sources) {
+    var box = byId('tasting-saved-sources');
+    if (!box) return;
+    box.replaceChildren();
+    (sources || []).forEach(function (item) {
+      var line = document.createElement('p');
+      var link = document.createElement('a');
+      link.textContent = 'Notes source: ' + item.title;
+      link.href = item.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      line.appendChild(link); box.appendChild(line);
+    });
+  }
+
+  window.CellarVoiceApp = {
+    showSources: showTastingSources,
+    types: TYPES, styles: WINE_STYLES,
+    apply: function (fields) {
+      var form = byId('entryForm');
+      var category = formValue(form, 'category');
+      if (fields.type && category === 'wine') {
+        form.elements.type.value = fields.type;
+        updateWineStyleField(category, fields.type, fields.subtype || '');
+      }
+      ['name', 'notes', 'rating', 'price', 'priceYear', 'yearBought', 'yearDrank'].forEach(function (field) {
+        if (Object.prototype.hasOwnProperty.call(fields, field)) form.elements[field].value = fields[field];
+      });
+      ['cellar','wantToTry'].forEach(function (field) {
+        if (Object.prototype.hasOwnProperty.call(fields, field)) form.elements[field].checked = fields[field];
+      });
+      setCellarFormState(form.elements.cellar.checked || form.elements.wantToTry.checked);
+      updateStars(form.elements.rating.value);
+      window.dispatchEvent(new CustomEvent('cellar-draft-changed'));
+    }
+  };
+
   function init() {
     state.bottles = loadBottles();
     document.addEventListener('click', handleClick);
@@ -1197,3 +1243,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 }());
+
