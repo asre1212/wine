@@ -1,0 +1,15 @@
+{
+  "type": "cellar-public-key",
+  "version": 1,
+  "keyId": "1d861aca056b0b9f8671769eb614ffd419de51defdf09ccfb2717c6b6bda5075",
+  "publicKey": {
+    "alg": "RSA-OAEP-256",
+    "e": "AQAB",
+    "ext": true,
+    "key_ops": [
+      "encrypt"
+    ],
+    "kty": "RSA",
+    "n": "yOUBFtb7Rr-EHMMB_b_kQmmBLToNF3QZ68np01ilXxQgZuAnFsprTCD6cYOETJGpLrKalKLMyfZdVMDSNfoRBSwTwIDunUeLuwGn-e7rdMc5Q8t07jzfHZPUujOOoxfpXEwFYSTO3TvgXGnMo1is3SE7Q0hX3MR-GH5mdPnL1GVXw1ICzNQ1gwiN1K5BTWOMVBhqlF_mWz0JKBZpwP8yZSBpqffSX4MlgVM9JWd9WIeDQX_lyryXr-VH1TDX7sDxj1l0H90Qi3EwcZfEP8CyFAB7dNS_sYu2L4lMjoxG623ufWj6egcfgpnU3YUVnq96Xs0UulOJv-GmWOlvKt0hDu8j8os6St8pgLUD88HmCCHF6K9EnkqrgSHXDogmx9xnQvCz8XlH1aMdmnU59kFS_Uep8e2EpuX5TOdwoKb8Jp1l9HvVAEMJIjEKlDjwqTOhrsG1ilfX2AyRtgwdXFO580t8rCFi3R215KEJwiChluu8SoTOjHO-rcllXqlg-ha1"
+  }
+}
