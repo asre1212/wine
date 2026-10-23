@@ -663,7 +663,7 @@ input, select, textarea, button { font-size: 16px; }
 .voice-dictionary-row p { font-size: 12px; }
 .tasting-result { display: block; width: 100%; text-align: left; padding: 12px; margin: 6px 0; background: var(--paper); border: 1px solid var(--gold); border-radius: 7px; font: inherit; color: var(--ink); }
 .tasting-check { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0; font-size: 14px; }
-.tasting-check input { width: 20px; min-width: 20px; height: 20px; accent-color: var(--wine); }
+.tasting-check input { appearance: auto; -webkit-appearance: checkbox; min-height: 20px; padding: 0; border: 0; width: 20px; min-width: 20px; height: 20px; accent-color: var(--wine); }
 .tasting-panel a, #tasting-saved-sources a { color: var(--gold-deep); overflow-wrap: anywhere; }
 .tasting-credit { font-size: 10px !important; }
 #tasting-review { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gold); }
@@ -930,3 +930,6 @@ input, select, textarea, button { font-size: 16px; }
 .batch-field input:not([type="checkbox"]), .batch-field select, .batch-field textarea { font-size: 16px; }
 .batch-card-heading { flex-wrap: wrap; }
 
+
+.voice-panel input, .voice-panel select, .voice-panel textarea { min-height: 44px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink); background: var(--paper); font-family: var(--sans); }
+.voice-panel { margin-left: 0; margin-right: 0; }

@@ -1,6 +1,6 @@
 {
   "name": "cellar-pwa",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Local-first wine, sake, and liquor journal PWA. Static site — deploy to GitHub Pages.",
   "private": true,
   "scripts": { "test": "node --test tests/*.test.cjs" },

@@ -1,4 +1,4 @@
-# Voice entry and tasting-note approval (2.6.0)
+# Voice entry and tasting-note approval (2.6.1)
 
 Open **+ → microphone**. Tap once to record and again to stop (30-second maximum).
 Whisper runs on the device in a worker, using the same implementation as the Lifting
