@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=2.6.1" />
+  <link rel="stylesheet" href="style.css?v=2.7.0" />
   <title>Cellar</title>
 </head>
 <body>
@@ -227,13 +227,31 @@
           <label class="btn-ghost" for="importInput">Import JSON / Pictures</label>
           <input id="importInput" type="file" accept="application/json" hidden />
         </div>
+        <div class="setting-group inbox-group">
+          <h3>Wine lists from chat <span id="inboxBadge" class="inbox-badge" hidden></span></h3>
+          <p class="muted">Upload a wine list in chat and ask to send it here. Review the formatted bottles below, then accept to save on this device and delete the GitHub delivery.</p>
+          <p id="inboxConnection" class="small"></p>
+          <details id="inboxSetup">
+            <summary>Connect this device</summary>
+            <p class="muted small">One-time setup: create a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">fine-grained GitHub token</a> for <strong>asre1212/wine</strong> only, with <strong>Contents: Read and write</strong>. Paste it here, never in chat.</p>
+            <label class="batch-field">GitHub token<input id="inboxToken" type="password" autocomplete="off" spellcheck="false" autocapitalize="none"></label>
+            <div class="inbox-actions"><button type="button" id="inboxConnect" class="btn-primary">Connect this device</button><button type="button" id="inboxDisconnect" class="btn-ghost" hidden>Disconnect</button></div>
+            <p class="muted small">The token and private key stay in this browser. One receiving device at a time. Backups include saved bottles; a new device needs to reconnect and have pending batches resent.</p>
+          </details>
+          <button type="button" id="inboxCheck" class="btn-ghost">Check deliveries</button>
+          <p id="inboxStatus" class="muted small" role="status"></p>
+          <div id="inboxList" class="inbox-list"></div>
+          <p class="muted small">Only encrypted deliveries pass through GitHub. After acceptance the active file is deleted; encrypted copies can remain in Git history. Your accepted bottle data stays local. Keep regular backups.</p>
+        </div>
         <div class="setting-group batch-add-group">
-          <h3>Batch add</h3>
-          <p class="muted">Choose Wine, Sake, or Liquor, then paste your list. Edit and review each bottle before saving.</p>
+          <h3 id="batchReviewTitle">Batch add &amp; review</h3>
+          <p id="batchSource" class="muted small" role="status"></p>
+          <p class="muted">Choose Wine, Sake, or Liquor, then paste one bottle per line (or separate longer entries with blank lines). Edit and review each bottle before saving.</p>
           <label class="batch-field">Category<select id="batchCategory"><option value="wine">Wine</option><option value="sake">Sake</option><option value="liquor">Liquor</option></select></label>
           <textarea id="batchInput" class="notes-area batch-input" rows="7" placeholder="- [x] Pinot Noir from Volnay, Cote de Beaune, Cote d'Or, Burgundy, France. A delicate wine with red fruit. $120–4/5 (a little sweet)"></textarea>
           <button id="parseBatchBtn" class="btn-primary">Parse entries</button>
           <p id="batchStatus" class="muted small" aria-live="polite"></p>
+          <div class="inbox-actions"><button type="button" id="reviewAllBatchBtn" class="btn-ghost" hidden>Mark all reviewed</button><button type="button" id="cancelBatchBtn" class="btn-ghost" hidden>Close review</button></div>
           <div id="batchReviewList" class="batch-review-list"></div>
           <button id="saveBatchBtn" class="btn-primary" disabled>Add reviewed bottles</button>
         </div>
@@ -301,11 +319,13 @@
   </svg>
 
   <!-- The app must never wait on the optional Excel library. -->
-  <script src="app.js?v=2.6.1"></script>
-  <script src="voice-parser.js?v=2.6.1"></script>
-  <script src="voice-memory.js?v=2.6.1"></script>
-  <script src="voice.js?v=2.6.1"></script>
-  <script src="tasting.js?v=2.6.1"></script>
+  <script src="inbox-core.js?v=2.7.0"></script>
+  <script src="app.js?v=2.7.0"></script>
+  <script src="voice-parser.js?v=2.7.0"></script>
+  <script src="voice-memory.js?v=2.7.0"></script>
+  <script src="voice.js?v=2.7.0"></script>
+  <script src="tasting.js?v=2.7.0"></script>
+  <script src="inbox.js?v=2.7.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" async></script>
 </body>
 </html>

@@ -1,15 +1,17 @@
 /* Cellar service worker — coherent, offline app shell. */
-const CACHE = 'cellar-v17';
+const CACHE = 'cellar-v18';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=2.6.1',
-  './app.js?v=2.6.1',
-  './voice-parser.js?v=2.6.1',
-  './voice-memory.js?v=2.6.1',
-  './voice.js?v=2.6.1',
-  './voice-worker.js?v=2.6.1',
-  './tasting.js?v=2.6.1',
+  './style.css?v=2.7.0',
+  './app.js?v=2.7.0',
+  './inbox-core.js?v=2.7.0',
+  './inbox.js?v=2.7.0',
+  './voice-parser.js?v=2.7.0',
+  './voice-memory.js?v=2.7.0',
+  './voice.js?v=2.7.0',
+  './voice-worker.js?v=2.7.0',
+  './tasting.js?v=2.7.0',
   './vendor/transformers.min.js',
   './manifest.webmanifest',
   './icons/icon.svg',
@@ -46,7 +48,7 @@ self.addEventListener('message', event => {
 function isCoreRequest(request) {
   if (request.mode === 'navigate') return true;
   const path = new URL(request.url).pathname;
-  return ['/index.html', '/app.js', '/style.css', '/manifest.webmanifest', '/voice-parser.js', '/voice-memory.js', '/voice.js', '/voice-worker.js', '/tasting.js']
+  return ['/index.html', '/app.js', '/style.css', '/manifest.webmanifest', '/voice-parser.js', '/voice-memory.js', '/voice.js', '/voice-worker.js', '/tasting.js', '/inbox-core.js', '/inbox.js']
     .some(name => path.endsWith(name));
 }
 
@@ -54,6 +56,8 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  // Deliveries and authorization responses must never be cached.
+  if (url.origin === 'https://api.github.com' || /\/inbox\//.test(url.pathname) || url.pathname.endsWith('/delivery-key.json')) return;
   // Online suggestions are ephemeral until approved; never cache query responses.
   if (['https://datasets-server.huggingface.co','https://r.jina.ai'].includes(url.origin)) return;
 

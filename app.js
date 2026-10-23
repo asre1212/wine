@@ -2,8 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.6.1';
-  var STORAGE_KEY = 'cellar.bottles.v1';
+  var APP_VERSION = '2.7.0';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
   var LAST_UPDATED_KEY = 'cellar.lastUpdated.v1';
@@ -37,7 +36,8 @@
     bottles: [],
     draftPhoto: '',
     photoRemoved: false,
-    batch: []
+    batch: [],
+    batchDelivery: null
   };
   var notesTimer = null;
 
@@ -87,23 +87,20 @@
 
   function loadBottles() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      var parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.map(normalizeBottle) : [];
+      return CellarInboxCore.readCollection(localStorage).bottles.map(normalizeBottle);
     } catch (error) {
       console.error('Could not read Cellar data', error);
       return [];
     }
   }
 
-  function persistBottles(nextBottles) {
+  function persistBottles(nextBottles, receipts) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBottles));
+      CellarInboxCore.saveBottles(localStorage, nextBottles, receipts);
       return true;
     } catch (error) {
       console.error('Could not save Cellar data', error);
-      toast('Storage is full. Remove a picture and try again.', 3600);
+      toast('Could not save locally. Free storage or restore a backup, then retry. Nothing was deleted from GitHub.', 5000);
       return false;
     }
   }
@@ -317,7 +314,7 @@
         entries.push({ raw: source.slice(item.end, end).trim(), cellar: item.checked });
       });
     } else {
-      source.split(/\n\s*\n/).forEach(function (block) {
+      source.split(/\n\s*\n/.test(source) ? /\n\s*\n/ : /\n/).forEach(function (block) {
         if (block.trim()) entries.push({ raw: block.trim(), cellar: false });
       });
     }
@@ -379,12 +376,13 @@
   }
 
   function batchReviewed() {
-    return state.batch.length > 0 && state.batch.every(function (entry) {
+    var included = state.batch.filter(function (entry) { return !entry.skip; });
+    return included.length > 0 && included.every(function (entry) {
       var rating = numberOrNull(entry.rating);
       var price = numberOrNull(entry.price);
       return entry.reviewed && entry.name.trim() && TYPES[entry.category] && TYPES[entry.category].indexOf(entry.type) >= 0 &&
         (rating === null || (rating >= 0 && rating <= 5)) &&
-        (price === null || price >= 0);
+        (price === null || price >= 0) && ['priceYear','yearBought','yearDrank'].every(function (key) { var year = numberOrNull(entry[key]); return year === null || (Number.isInteger(year) && year >= 1000 && year <= 9999); });
     });
   }
 
@@ -394,6 +392,7 @@
     list.innerHTML = state.batch.map(function (entry, index) {
       return '<article class="batch-review-card' + (entry.reviewed ? ' is-reviewed' : '') + '">' +
         '<div class="batch-card-heading"><strong>Bottle ' + (index + 1) + '</strong><button type="button" class="btn-ghost batch-review-toggle" data-batch-review="' + index + '">' + (entry.reviewed ? 'Reviewed ✓' : 'Mark reviewed') + '</button></div>' +
+        '<label class="batch-field batch-cellar"><input type="checkbox" data-batch-index="' + index + '" data-batch-field="skip"' + (entry.skip ? ' checked' : '') + '> Skip this bottle</label>' +
         '<label class="batch-field">Name<input data-batch-index="' + index + '" data-batch-field="name" value="' + escapeHtml(entry.name) + '"></label>' +
         '<label class="batch-field">Category<select data-batch-index="' + index + '" data-batch-field="category">' + Object.keys(CATEGORY_LABELS).map(function (category) { return '<option value="' + category + '"' + (category === entry.category ? ' selected' : '') + '>' + CATEGORY_LABELS[category] + '</option>'; }).join('') + '</select></label>' +
         '<div class="batch-field-row"><label class="batch-field">Type<select data-batch-index="' + index + '" data-batch-field="type">' + TYPES[entry.category].map(function (type) { return '<option' + (type === entry.type ? ' selected' : '') + '>' + escapeHtml(type) + '</option>'; }).join('') + '</select></label>' +
@@ -401,17 +400,26 @@
         '<div class="batch-field-row"><label class="batch-field">Price<input data-batch-index="' + index + '" data-batch-field="price" type="number" min="0" step="0.01" value="' + (entry.price === null ? '' : escapeHtml(entry.price)) + '" placeholder="—"></label>' +
         '<label class="batch-field">Rating<input data-batch-index="' + index + '" data-batch-field="rating" type="number" min="0" max="5" step="0.01" value="' + (entry.rating === null ? '' : escapeHtml(entry.rating)) + '" placeholder="—"></label></div>' +
         '<label class="batch-field batch-cellar"><input type="checkbox" data-batch-index="' + index + '" data-batch-field="cellar"' + (entry.cellar ? ' checked' : '') + '> In cellar (untasted)</label>' +
+        '<label class="batch-field batch-cellar"><input type="checkbox" data-batch-index="' + index + '" data-batch-field="wantToTry"' + (entry.wantToTry ? ' checked' : '') + '> Want to try</label>' +
+        '<div class="batch-field-row">' + ['priceYear','yearBought','yearDrank'].map(function (key) { return '<label class="batch-field">' + ({priceYear:'Price year',yearBought:'Year bought',yearDrank:'Year tasted'}[key]) + '<input type="number" min="1000" max="9999" data-batch-index="' + index + '" data-batch-field="' + key + '" value="' + escapeHtml(entry[key] == null ? '' : entry[key]) + '"></label>'; }).join('') + '</div>' +
+        ((entry.tastingSources || []).length ? '<p class="muted small">Online tasting sources: ' + entry.tastingSources.map(function (source) { return '<a href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(source.title) + '</a>'; }).join(' · ') + '. Review the notes before accepting.</p>' : '') +
+        (state.bottles.some(function (bottle) { return bottle.name.trim().toLowerCase() === entry.name.trim().toLowerCase(); }) ? '<p class="muted small">A bottle with this name is already saved. Accepting will keep both.</p>' : '') +
         '<label class="batch-field">Notes<textarea data-batch-index="' + index + '" data-batch-field="notes" rows="3">' + escapeHtml(entry.notes) + '</textarea></label>' +
         '</article>';
     }).join('');
     var status = byId('batchStatus');
     if (status) {
-      var reviewedCount = state.batch.filter(function (entry) { return entry.reviewed; }).length;
-      status.textContent = state.batch.length ? reviewedCount + ' of ' + state.batch.length + ' entries reviewed.' +
-        (reviewedCount === state.batch.length && !batchReviewed() ? ' Correct any invalid price or rating to continue.' : '') : '';
+      var included = state.batch.filter(function (entry) { return !entry.skip; });
+      var reviewedCount = included.filter(function (entry) { return entry.reviewed; }).length;
+      status.textContent = state.batch.length ? reviewedCount + ' of ' + included.length + ' entries reviewed. ' + (state.batch.length - included.length) + ' skipped.' +
+        (reviewedCount === included.length && !batchReviewed() ? ' Correct any invalid price, rating or year to continue.' : '') : '';
     }
     var save = byId('saveBatchBtn');
-    if (save) save.disabled = !batchReviewed();
+    if (save) { save.disabled = !batchReviewed(); save.textContent = state.batchDelivery ? 'Accept & save locally' : 'Add reviewed bottles'; }
+    byId('batchSource').textContent = state.batchDelivery ? 'From chat · ' + state.batchDelivery.id.slice(0,8) + '. Accepting saves this batch on this device, then deletes its GitHub inbox file.' : '';
+    byId('cancelBatchBtn').hidden = !state.batch.length;
+    byId('reviewAllBatchBtn').hidden = !state.batch.length;
+    byId('parseBatchBtn').disabled = !!state.batchDelivery;
   }
 
   function updateBatchField(target) {
@@ -420,7 +428,8 @@
     var field = target.getAttribute('data-batch-field');
     var entry = state.batch[index];
     if (!entry || !field) return false;
-    entry[field] = field === 'cellar' ? target.checked : target.value;
+    entry[field] = ['cellar','wantToTry','skip'].indexOf(field) >= 0 ? target.checked : target.value;
+    if (field === 'skip') { renderBatchReview(); return true; }
     if (field === 'category') {
       entry.type = 'Other';
       entry.subtype = '';
@@ -428,7 +437,10 @@
       renderBatchReview();
       return true;
     }
-    if (field === 'cellar' && target.checked) {
+    if (['cellar','wantToTry'].indexOf(field) >= 0 && target.checked) {
+      var other = field === 'cellar' ? 'wantToTry' : 'cellar';
+      entry[other] = false;
+      document.querySelector('[data-batch-index="' + index + '"][data-batch-field="' + other + '"]').checked = false;
       entry.rating = null;
       var ratingInput = document.querySelector('[data-batch-index="' + index + '"][data-batch-field="rating"]');
       if (ratingInput) ratingInput.value = '';
@@ -446,32 +458,45 @@
     if (save) save.disabled = !batchReviewed();
     var status = byId('batchStatus');
     if (status && state.batch.length) {
-      var reviewedCount = state.batch.filter(function (item) { return item.reviewed; }).length;
-      status.textContent = reviewedCount + ' of ' + state.batch.length + ' entries reviewed.' +
-        (reviewedCount === state.batch.length && !batchReviewed() ? ' Correct any invalid price or rating to continue.' : '');
+      var included = state.batch.filter(function (item) { return !item.skip; });
+      var reviewedCount = included.filter(function (item) { return item.reviewed; }).length;
+      status.textContent = reviewedCount + ' of ' + included.length + ' entries reviewed. ' + (state.batch.length - included.length) + ' skipped.' +
+        (reviewedCount === included.length && !batchReviewed() ? ' Correct any invalid price, rating or year to continue.' : '');
     }
     return true;
   }
 
   function saveBatch() {
     if (!batchReviewed()) { toast('Review every entry before adding bottles'); return; }
-    var additions = state.batch.map(function (entry) {
+    var additions = state.batch.filter(function (entry) { return !entry.skip; }).map(function (entry) {
       return normalizeBottle({
+        id: entry.id || uid(),
         category: entry.category,
         type: entry.type,
         subtype: entry.category === 'wine' ? entry.subtype : '',
         name: entry.name.trim(),
         notes: entry.notes.trim(),
         price: numberOrNull(entry.price),
-        rating: entry.cellar ? null : numberOrNull(entry.rating),
+        rating: (entry.cellar || entry.wantToTry) ? null : numberOrNull(entry.rating),
         cellar: entry.cellar,
-        wantToTry: false,
+        wantToTry: entry.wantToTry,
+        priceYear: entry.priceYear,
+        yearBought: entry.yearBought,
+        yearDrank: entry.yearDrank,
+        tastingSources: entry.tastingSources || [],
         createdAt: now(),
         updatedAt: now()
       });
     });
-    var next = state.bottles.concat(additions);
-    if (!persistBottles(next)) return;
+    var packet = state.batchDelivery;
+    var next, count = additions.length;
+    if (packet) {
+      try { var result = CellarInboxCore.accept(localStorage, packet, additions); next = result.bottles; count = result.count; }
+      catch (error) { toast('Not saved. ' + error.message + ' GitHub delivery kept.', 6000); return; }
+    } else {
+      next = loadBottles().concat(additions);
+      if (!persistBottles(next)) return;
+    }
     state.bottles = next;
     state.category = additions[0].category;
     state.typeFilter = '';
@@ -480,12 +505,14 @@
     if (statusFilter) statusFilter.value = 'all';
     document.querySelectorAll('.tab').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.cat === state.category); });
     state.batch = [];
+    state.batchDelivery = null;
     var input = byId('batchInput');
     if (input) input.value = '';
     renderBatchReview();
     renderList();
     updateCount();
-    toast(additions.length + ' bottles added');
+    toast(count + ' bottles added locally');
+    if (packet) window.dispatchEvent(new CustomEvent('cellar-delivery-accepted', {detail: {packet: packet, count: count}}));
   }
 
   function updateWineStyleField(category, type, current) {
@@ -869,7 +896,7 @@
     var corrections;
     try { corrections = window.CellarVoiceMemory ? CellarVoiceMemory.exportData() : undefined; }
     catch (error) { toast(error.message); return; }
-    var payload = { app: 'cellar', version: 5, voiceCorrections: corrections, exportedAt: new Date().toISOString(), photos: 'separate', bottles: bottles, notes: loadNotes() };
+    var payload = { app: 'cellar', version: 6, deliveryReceipts: CellarInboxCore.readCollection(localStorage).receipts, voiceCorrections: corrections, exportedAt: new Date().toISOString(), photos: 'separate', bottles: bottles, notes: loadNotes() };
     download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'cellar-backup-' + dateStamp() + '.json');
     var hasPhotos = state.bottles.some(function (bottle) { return bottle.photoId || bottle.photo; });
     toast(hasPhotos ? 'Backup exported. Use Export Pictures for photos.' : 'Backup exported', 3200);
@@ -929,6 +956,7 @@
         }
         var incoming = Array.isArray(parsed) ? parsed : parsed.bottles;
         if (!Array.isArray(incoming)) throw new Error('Invalid backup');
+        var restoredReceipts = (parsed.deliveryReceipts || []).map(CellarInboxCore.validateReceipt);
         var voicePlan = parsed.voiceCorrections && window.CellarVoiceMemory ? CellarVoiceMemory.mergePlan(parsed.voiceCorrections) : null;
         if (!confirm('Import ' + incoming.length + ' bottles? Existing entries with the same ID will be replaced.')) return;
         var byIdMap = {};
@@ -944,7 +972,7 @@
         });
         Promise.all(photoJobs).then(function () {
           var next = Object.keys(byIdMap).map(function (id) { return byIdMap[id]; });
-          if (!persistBottles(next)) return;
+          if (!persistBottles(next, restoredReceipts)) return;
           state.bottles = next;
           if (parsed && typeof parsed.notes === 'string') saveNotes(parsed.notes);
           var voiceError = '';
@@ -1102,10 +1130,13 @@
     else if (button.id === 'exportXlsxBtn') exportExcel();
     else if (button.id === 'updateBtn') forceUpdate();
     else if (button.id === 'parseBatchBtn') {
+      if (state.batchDelivery) return;
       state.batch = parseBatchText(byId('batchInput').value, byId('batchCategory').value);
       renderBatchReview();
       toast(state.batch.length ? state.batch.length + ' entries ready to review' : 'No entries found');
     } else if (button.id === 'saveBatchBtn') saveBatch();
+    else if (button.id === 'reviewAllBatchBtn') { state.batch.forEach(function (item) { item.reviewed = true; }); renderBatchReview(); }
+    else if (button.id === 'cancelBatchBtn') { state.batch = []; state.batchDelivery = null; renderBatchReview(); toast('Review closed. No bottles saved or deliveries deleted.'); }
     else if (button.hasAttribute('data-batch-review')) {
       var batchIndex = Number(button.getAttribute('data-batch-review'));
       if (state.batch[batchIndex]) state.batch[batchIndex].reviewed = !state.batch[batchIndex].reviewed;
@@ -1179,6 +1210,18 @@
       line.appendChild(link); box.appendChild(line);
     });
   }
+
+  window.CellarBatchApp = {
+    openDelivery: function (packet, payload) {
+      var checked = CellarInboxCore.validatePayload(payload);
+      if (checked.id !== packet.id) throw new Error('Delivery ID mismatch.');
+      if (state.batch.length && !confirm('Replace the current unsaved batch review?')) return false;
+      state.batchDelivery = packet;
+      state.batch = checked.bottles.map(function (bottle) { return Object.assign({}, bottle, {reviewed:false}); });
+      renderBatchReview();
+      return true;
+    }
+  };
 
   window.CellarVoiceApp = {
     showSources: showTastingSources,

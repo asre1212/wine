@@ -155,3 +155,17 @@ Select **Want to try** when adding or editing a bottle. These bottles appear las
 
 After updating, use **Settings → Update from GitHub**.
 
+
+## Wine lists from chat (2.7)
+
+Upload a list in chat and ask the assistant to format it and send it to this wine app. The assistant workflow is in [ENTRY_HOOK.md](ENTRY_HOOK.md); `scripts/create-delivery.mjs` prepares encrypted batches. There is no plaintext list in GitHub.
+
+On your receiving phone, open **Settings → Wine lists from chat → Connect this device** once. Create a fine-grained GitHub token for **asre1212/wine only**, with **Contents: Read and write**, and paste it into the app (not chat). The app keeps the token and private key locally and publishes only its public key. Then **Check deliveries → Review batch**, edit fields if needed, mark reviewed, and **Accept & save locally**. Source links and two-line tasting notes can accompany the draft. The existing paste-list batch feature remains available without connecting GitHub.
+
+Acceptance saves bottles plus a durable receipt in one localStorage write before deleting the matching GitHub inbox file. If saving fails, nothing is deleted. If deletion fails, checking deliveries retries cleanup without importing again. Closing a review leaves both your collection and the queued delivery untouched. Duplicate names are flagged for review; matching existing IDs never overwrite bottles. Receipt history is included in bottle backups; the GitHub token and receiving private key are excluded.
+
+Only one receiving browser/device is paired at a time. Moving phones requires reconnecting and resending pending batches to the new public key; restore a regular backup for bottles already accepted. Checking occurs when the app opens, returns to the foreground, comes online, or you press Check deliveries. It does not require or promise background activity while closed.
+
+Deleting a GitHub file does **not** erase Git history. Historical encrypted envelopes may remain, but readable bottle data and the decrypting key stay on the receiving device. Keep regular local backups. The assistant cannot read your local collection.
+
+Verification: `npm ci && npm test` (Node 20+). Delivery tests cover real encryption, draft-only review, atomic local-save failure, receipt retry, duplicate suppression, exact-SHA deletion, source preservation, and legacy collection/backup compatibility.

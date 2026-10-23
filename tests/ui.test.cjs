@@ -9,7 +9,7 @@ async function setup(){
  w.HTMLAnchorElement.prototype.click=function(){w.lastDownload=this.download;};
  w.isSecureContext=true;
  w.fetch=async()=>{throw Error('Unexpected network');};
- for(const file of ['app.js','voice-parser.js','voice-memory.js','voice.js','tasting.js'])w.eval(fs.readFileSync(path.join(__dirname,'..',file),'utf8'));
+ for(const file of ['inbox-core.js','app.js','voice-parser.js','voice-memory.js','voice.js','tasting.js'])w.eval(fs.readFileSync(path.join(__dirname,'..',file),'utf8'));
  await tick();return {dom,w,$:id=>w.document.getElementById(id),form:w.document.getElementById('entryForm')};
 }
 function input(w,el,value){el.value=value;el.dispatchEvent(new w.Event('input',{bubbles:true}));}
@@ -67,7 +67,7 @@ test('microphone start/stop, transcription, permission failure and cancellation'
 test('backup includes corrections and approved sources; old imports preserve corrections',async()=>{
  const {dom,w,$,form}=await setup();try{
  w.CellarVoiceMemory.remember({phrase:'my bottle',name:'Promontory',type:'Red'});
- let blob;w.URL.createObjectURL=value=>{blob=value;return 'blob:test';};$('exportJsonBtn').click();const text=await new Promise(resolve=>{const reader=new w.FileReader();reader.onload=()=>resolve(reader.result);reader.readAsText(blob);});const backup=JSON.parse(text);assert.equal(backup.version,5);assert.equal(backup.voiceCorrections.entries[0].name,'Promontory');
+ let blob;w.URL.createObjectURL=value=>{blob=value;return 'blob:test';};$('exportJsonBtn').click();const text=await new Promise(resolve=>{const reader=new w.FileReader();reader.onload=()=>resolve(reader.result);reader.readAsText(blob);});const backup=JSON.parse(text);assert.equal(backup.version,6);assert.equal(backup.voiceCorrections.entries[0].name,'Promontory');
  async function importData(obj){Object.defineProperty($('importInput'),'files',{value:[new w.File([JSON.stringify(obj)],'backup.json',{type:'application/json'})],configurable:true});$('importInput').dispatchEvent(new w.Event('change',{bubbles:true}));await tick();}
  await importData({bottles:[{id:'old',name:'Legacy wine',category:'wine'}]});assert.equal(w.CellarVoiceMemory.list().length,1);assert.equal(JSON.parse(w.localStorage.getItem('cellar.bottles.v1')).length,1);
  await importData({bottles:[{id:'bad',name:'Should not import'}],voiceCorrections:{version:1,entries:[{phrase:'x',name:'bad',type:'bad'}]}});assert.equal(JSON.parse(w.localStorage.getItem('cellar.bottles.v1')).length,1);

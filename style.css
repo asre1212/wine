@@ -933,3 +933,14 @@ input, select, textarea, button { font-size: 16px; }
 
 .voice-panel input, .voice-panel select, .voice-panel textarea { min-height: 44px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink); background: var(--paper); font-family: var(--sans); }
 .voice-panel { margin-left: 0; margin-right: 0; }
+
+/* Chat batch inbox */
+.inbox-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: .75rem 0; }
+.inbox-list { display: grid; gap: .7rem; }
+.inbox-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .7rem; padding: .85rem; border: 1px solid var(--line); border-radius: 12px; }
+.inbox-badge { display: inline-block; padding: .1rem .5rem; border-radius: 1rem; background: var(--gold); color: #fff; font-size: .75rem; }
+.inbox-group details { margin: .75rem 0; }
+.inbox-group summary { cursor: pointer; font-weight: 600; padding: .5rem 0; }
+.inbox-group a, .batch-review-card a { color: var(--gold); text-decoration: underline; }
+.inbox-group input { width: 100%; min-width: 0; }
+.inbox-group [hidden], .batch-add-group [hidden] { display: none; }
