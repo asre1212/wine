@@ -944,3 +944,12 @@ input, select, textarea, button { font-size: 16px; }
 .inbox-group a, .batch-review-card a { color: var(--gold); text-decoration: underline; }
 .inbox-group input { width: 100%; min-width: 0; }
 .inbox-group [hidden], .batch-add-group [hidden] { display: none; }
+
+/* Wine hierarchy: type, then grape/style, then bottles. */
+.wine-type-group { margin-top: 26px; min-width: 0; }
+.wine-type-group:first-child { margin-top: 12px; }
+.wine-type-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding: 12px 0; border-bottom: 2px solid var(--line-strong); font-family: var(--serif); font-size: 25px; font-weight: 500; color: var(--ink); }
+.wine-type-count { flex-shrink: 0; font-family: var(--sans); font-size: 12px; font-weight: 400; color: var(--muted); }
+.wine-style-heading { margin: 0; }
+.wine-style-group { min-width: 0; }
+.wine-style-group + .wine-style-group { margin-top: 12px; }

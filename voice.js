@@ -9,7 +9,7 @@ let editingPhrase=null, lastParsed=null;
 
 function call(op,audio){
  if(!worker){
-  worker=new Worker(new URL('voice-worker.js?v=2.7.0', document.baseURI),{type:'module'});
+  worker=new Worker(new URL('voice-worker.js?v=2.7.1', document.baseURI),{type:'module'});
   worker.onmessage=({data})=>{if(data.progress){status(data.progress);return;}if(pending&&data.id===pending.id){clearTimeout(pending.timeout);const p=pending;pending=null;data.error?p.reject(new Error(data.error)):p.resolve(data);}};
   worker.onerror=()=>abortWorker('Speech engine unavailable. Retry online, or type the entry.');
  }

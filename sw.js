@@ -1,17 +1,17 @@
 /* Cellar service worker — coherent, offline app shell. */
-const CACHE = 'cellar-v18';
+const CACHE = 'cellar-v19';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=2.7.0',
-  './app.js?v=2.7.0',
-  './inbox-core.js?v=2.7.0',
-  './inbox.js?v=2.7.0',
-  './voice-parser.js?v=2.7.0',
-  './voice-memory.js?v=2.7.0',
-  './voice.js?v=2.7.0',
-  './voice-worker.js?v=2.7.0',
-  './tasting.js?v=2.7.0',
+  './style.css?v=2.7.1',
+  './app.js?v=2.7.1',
+  './inbox-core.js?v=2.7.1',
+  './inbox.js?v=2.7.1',
+  './voice-parser.js?v=2.7.1',
+  './voice-memory.js?v=2.7.1',
+  './voice.js?v=2.7.1',
+  './voice-worker.js?v=2.7.1',
+  './tasting.js?v=2.7.1',
   './vendor/transformers.min.js',
   './manifest.webmanifest',
   './icons/icon.svg',

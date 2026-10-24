@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.7.0';
+  var APP_VERSION = '2.7.1';
   var NOTES_KEY = 'cellar.notes.v1';
   var NOTES_SAVED_AT_KEY = 'cellar.notes.savedAt.v1';
   var LAST_UPDATED_KEY = 'cellar.lastUpdated.v1';
@@ -255,6 +255,35 @@
       '<div class="card-rating">' + ratingHtml + '</div></article>';
   }
 
+  function wineListHtml(bottles, ranks) {
+    var types = Object.create(null);
+    bottles.forEach(function (bottle) {
+      var type = bottle.type || 'Other';
+      var style = bottle.subtype || 'Other';
+      if (!types[type]) types[type] = Object.create(null);
+      if (!types[type][style]) types[type][style] = [];
+      types[type][style].push(bottle);
+    });
+    var order = ['Red', 'White', 'Sparkling', 'Rosé', 'Dessert', 'Fortified', 'Orange', 'Other'];
+    Object.keys(types).sort().forEach(function (type) { if (order.indexOf(type) < 0) order.push(type); });
+    return order.filter(function (type) { return types[type]; }).map(function (type) {
+      var styles = types[type];
+      var styleOrder = (WINE_STYLES[type] || []).filter(function (style) { return style !== 'Other' && styles[style]; });
+      Object.keys(styles).sort().forEach(function (style) {
+        if (style !== 'Other' && styleOrder.indexOf(style) < 0) styleOrder.push(style);
+      });
+      if (styles.Other) styleOrder.push('Other');
+      var count = Object.keys(styles).reduce(function (total, style) { return total + styles[style].length; }, 0);
+      return '<section class="wine-type-group" aria-label="' + escapeHtml(type) + ' wines">' +
+        '<h2 class="wine-type-heading">' + escapeHtml(type) + '<span class="wine-type-count">' + count + (count === 1 ? ' bottle' : ' bottles') + '</span></h2>' +
+        styleOrder.map(function (style) {
+          return '<section class="wine-style-group" aria-label="' + escapeHtml(style) + '">' +
+            '<h3 class="group-header wine-style-heading">' + escapeHtml(style) + '</h3>' +
+            styles[style].map(function (bottle) { return cardHtml(bottle, ranks[bottle.id]); }).join('') + '</section>';
+        }).join('') + '</section>';
+    }).join('');
+  }
+
   function renderList() {
     populateTypeFilter();
     var list = byId('list');
@@ -267,6 +296,11 @@
       return;
     }
     var ranks = computeRanks();
+    if (state.category === 'wine') {
+      list.innerHTML = wineListHtml(bottles, ranks);
+      hydrateCardThumbs();
+      return;
+    }
     if (state.sortBy !== 'rating-desc' && state.sortBy !== 'rating-asc') {
       list.innerHTML = bottles.map(function (bottle) { return cardHtml(bottle, ranks[bottle.id]); }).join('');
       hydrateCardThumbs();

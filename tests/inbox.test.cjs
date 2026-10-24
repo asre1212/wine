@@ -82,7 +82,7 @@ async function ui(){
  const github=server(w.localStorage);w.fetch=github.fetch;
  w.URL.createObjectURL=()=> 'blob:test';w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=function(){};
  for(const file of ['inbox-core.js','app.js','inbox.js'])w.eval(fs.readFileSync(path.join(__dirname,'..',file),'utf8'));
- await until(()=>$('appVersion').textContent==='2.7.0');
+ await until(()=>$('appVersion').textContent==='2.7.1');
  return {dom,w,$,github};
 }
 async function connect(context){const {$,github}=context;$('inboxToken').value='test-token-not-a-secret';$('inboxConnect').click();await until(()=>$('inboxConnection').textContent==='Connected on this device');return JSON.parse(Buffer.from(github.files.get('delivery-key.json').content,'base64'));}
