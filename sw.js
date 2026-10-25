@@ -1,5 +1,5 @@
 /* Cellar service worker — coherent, offline app shell. */
-const CACHE = 'cellar-v19';
+const CACHE = 'cellar-v20';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -87,4 +87,5 @@ self.addEventListener('fetch', event => {
     }))
   );
 });
+
 
